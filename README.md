@@ -1,2 +1,2 @@
 # RadNet-EDA
-Data Analysis Project for RadNet Data
+Exploratory Data Analysis Project in R for RadNet Data
