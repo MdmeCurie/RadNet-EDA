@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "RadNet Exploratory Data Analysis"
 output: html_notebook
 ---
 RadNet Data by Wendy Bisset
@@ -18,7 +18,6 @@ a margin line to help you keep track of this guideline!
 ```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
 # Load all of the packages that you end up using in your analysis in this code
 # chunk.
-
 # Notice that the parameter "echo" was set to FALSE for this code chunk. This
 # prevents the code from displaying in the knitted HTML output. You should set
 # echo=FALSE for all code chunks in your file, unless it makes sense for your
@@ -29,131 +28,300 @@ a margin line to help you keep track of this guideline!
 # want it to. This will clean up the flow of your report.
 
 library(ggplot2)
+library(dplyr)
+library(ggmap)
+
+citation('ggmap')
 ```
 
 #Data Source and Info
-[RadNet](https://www.epa.gov/enviro/radnet-customized-search)
 
-Using 3 tables:
+>RadNet is a national network of more than 200 monitoring stations distributed across all 50 states and the American Territories. These stations regularly sample the nation's air, precipitation, or drinking water for a variety of radionuclides (e.g., iodine-131) and radiation types (e.g., gross beta (β)). During its operation beginning in1973, RadNet's predecessor, the Environmental Radiation Ambient Monitoring System (ERAMS), collected over a half million high quality environmental samples. The current database primarily provides data that was collected between 1978 and present.. Some older "pre-ERAMS" data is included, and additional data will be added soon
+
+Data downloaded directly from website [RadNet](https://www.epa.gov/enviro/radnet-customized-search) using 3 tables:
 - Media
 - Sampling Location
 - Types of Radionuclides and Radiation
-```{python}
-
-```
+Data was downloaded in decade chunks for data pre-1989, 1990-1999, 2000-2009, 2010-2017 for 5 media types:
++ drinking water (DW)
++ surface water (SW) program was terminated March 1999
++ precipitation
++ milk program was terminated 2014
++ air data combined
+  air-charcoal: data only found in 2010-2017 query
+  air-filter: data all years
+No filters or limitations were placed on location or types of radionuclides analysed. Some columns (variables) were filtered out and will not be examined in this project. ()
 
 ```{r}
-#list.files('radnet_data')
+#list files in Data Folder 
+list.files('radnet_data/', recursive = TRUE)
+```
+#Loading DATA and Merging Data Files
+
+As the data was downloaded in chunks (the website mentioned a 10,000 record limit to download)*ref needed* the resulting .csv files must be consolidated. 
+REFERENCE:  [Merge Files into single DataFrame](https://psychwire.wordpress.com/2011/06/03/merge-all-files-in-a-directory-using-r-into-a-single-dataframe/)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Load_the_Data}
+# Load/Merge the Data
+# delete existing dataframes if rerunning this chunk otherwise duplicates will result
+dir_list <-  list.files('radnet_data/')
+
+for (directory in dir_list){
+  subdir <- (paste('radnet_data/', directory, sep=""))
+  files_in_sub <- list.files(subdir)
+  dfname <- paste(directory, '_data', sep="")  
+  
+  for (file in files_in_sub){
+    file_loc <- paste(subdir, '/', file, sep="")
+    print(file_loc)
+    # if the merged dataset doesn't exist, create it
+    if (!exists("db")){
+        db <- read.csv(file_loc, header=TRUE)
+    }
+    # if the merged dataset does exist, append to it
+    else if (exists("db")){
+        temp_dataset <-read.csv(file_loc, header=TRUE)
+        db <-rbind(db, temp_dataset)
+       rm(temp_dataset)
+    }
+  }
+  assign(dfname, db)
+  remove(db)
+}
 
 ```
 
+[Getting List of data.frame names](http://r.789695.n4.nabble.com/getting-list-of-data-frame-names-td3864338.html)
+While one can create character list of dataframes (listofDF), using this list in bind_rows does not work.  passing listofDF passes "char" not object - error generated
+listofDF <- as.list(names(which(sapply(.GlobalEnv, is.data.frame))))
 
-REFERENCE:  [Merge Files into single DataFrame](https://psychwire.wordpress.com/2011/06/03/merge-all-files-in-a-directory-using-r-into-a-single-dataframe/)
+```{r echo=FALSE, message=FALSE, warning=FALSE, tidy_data}
+#SAMP_ID iS INT IN surface_water_data and CHR in all other dataframes convert before 
+#df consolidation into one dataframe
+surface_water_data$V_ERAMS_MATRIX_SAMPLE_ANALYSIS.SAMP_ID <-
+  as.character(
+    surface_water_data$V_ERAMS_MATRIX_SAMPLE_ANALYSIS.SAMP_ID)
 
-~~~~
-setwd("target_dir/")
-file_list <- list.files()
- 
-for (file in file_list){
-       
-  # if the merged dataset doesn't exist, create it
-  if (!exists("dataset")){
-    dataset <- read.table(file, header=TRUE, sep="\t")
-  }
-   
-  # if the merged dataset does exist, append to it
-  if (exists("dataset")){
-    temp_dataset <-read.table(file, header=TRUE, sep="\t")
-    dataset<-rbind(dataset, temp_dataset)
-    rm(temp_dataset)
-  }
- 
-}
-~~~~~
-
-```{r echo=FALSE, Load_the_Data}
-# Load the Data
-setwd('radnet_data/')
-file_list <- list.files()
-
-for (file in file_list){
-       
-  # if the merged dataset doesn't exist, create it
-  if (!exists("DW_data")){
-    DW_data<- read.csv(file, header=TRUE)
-  }
-   
-  # if the merged dataset does exist, append to it
-  if (exists("DW_data")){
-    temp_dataset <-read.csv(file, header=TRUE)
-    DW_data<-rbind(DW_data, temp_dataset)
-    rm(temp_dataset)
-  }
- 
-}
-names(DW_data)
-
-setwd('../')
-getwd()
+rad_data <- bind_rows(list(air_data, drinking_water_data, Milk_data,
+                           precipitation_data, surface_water_data),
+                      .id ="id")
 ```
 # Data Overview 
 ## Cleanup/Shorten Variable names
 
+```{r tidy_data_colnames}
+colnames(surface_water_data) <-gsub('.+\\.','',colnames(surface_water_data))
+colnames(Milk_data) <-gsub('.+\\.','',colnames(Milk_data))
+colnames(air_data) <-gsub('.+\\.','',colnames(air_data))
+colnames(precipitation_data) <-gsub('.+\\.','',colnames(precipitation_data))
+colnames(drinking_water_data)<-
+  gsub('.+\\.','',colnames(drinking_water_data))
+colnames(rad_data) <-gsub('.+\\.','',colnames(rad_data))
+```
+# Recast Some Character Variables as Factors or Ordered Factors
+some variables have limited categories, such as State abbreviations, Analytes, or the measurement units these can be addressed as factors and in the case of units it may be possible to impose an order, e.g., mL<L; recast Date field from chr to date
+[as.Date](https://www.rdocumentation.org/packages/base/versions/3.4.1/topics/as.Date)
+```{r dataframe_info}
+
+#test factorization on small dataframe
+#surface_water_data$MATERIAL <- factor(surface_water_data$MAT_ID)
+#surface_water_data$STATE <- factor(surface_water_data$STATE_ABBR)
+#str(surface_water_data$STATE)
+#str(surface_water_data$MATERIAL)
+
+## recast variables in rad_data (consolidated) dataframe
+
+rad_data$ID <- factor(as.integer(rad_data$id))
+rad_data$MAT_ID <- factor(rad_data$MAT_ID)
+rad_data$ANA_UNIT <- factor(rad_data$ANA_UNIT)
+rad_data$ANA_PROC_NUM <- factor(rad_data$ANA_PROC_NUM)
+rad_data$LOC_NUM <- factor(rad_data$LOC_NUM)
+rad_data$CITY_NAME <- factor(rad_data$CITY_NAME)
+rad_data$STATE_ABBR <- factor(rad_data$STATE_ABBR)
+rad_data$ANALYTE_ID <- factor(rad_data$ANALYTE_ID)
+rad_data$RESULT_UNIT <- factor(rad_data$RESULT_UNIT)
+rad_data$ANA_TYPE <- factor(rad_data$ANA_TYPE)
+rad_data$HALF_LIFE_TIME_UNIT <- factor(rad_data$HALF_LIFE_TIME_UNIT)
+rad_data$ANALYTE_NAME <- factor(rad_data$ANALYTE_NAME)
+rad_data[1] <- NULL 
+# where %F == "%Y-%m-%d" ISO 8601 format
+rad_data$RESULT_DATE <- as.Date(rad_data$RESULT_DATE, "%F")
+summary(rad_data$RESULT_DATE)
+
+```
 ```{r}
-colnames(DW_data) <-gsub('.+\\.','',colnames(DW_data))
-head(DW_data)
-dim(DW_data)
-names(DW_data)
-summary(DW_data)
-cities <- unique(DW_data$CITY_NAME)
-cities
-states <-unique(DW_data$STATE_ABBR)
-statelist <- c('NM', 'VA', 'CA', 'NE')
+summary(rad_data$ANA_UNIT)
+summary(rad_data$RESULT_UNIT)
+summary(rad_data$HALF_LIFE_TIME_UNIT)
+##Create ordered factor for Time units sec<min<hour<day<year
+rad_data$HALF_LIFE_TIME_UNIT <- factor(rad_data$HALF_LIFE_TIME_UNIT,
+                                       levels  = c("S", "M", 
+                                                   "H", "D", "Y"))
+levels(rad_data$HALF_LIFE_TIME_UNIT)
 ```
 
-# Geocoding
-use library ggmap 
+
+```{r}
+##info for rad_data
+head(rad_data)
+dim(rad_data)
+names(rad_data)
+summary(rad_data)
+```
+
+##attempt to convert SAMP_ID to numeric, 
+some SAMP_ID values are prefaced with alpha character
+```{r}
+rad_data$sample <- as.numeric(rad_data$SAMP_ID)
+summary(rad_data$sample)
+
+Milk_data %>% 
+            select(SAMP_ID, RESULT_AMOUNT, LOC_NUM) %>%     
+            filter(is.na(as.numeric(SAMP_ID))) %>% 
+            count(SAMP_ID)
+str(rad_data$SAMP_ID)
+```
+
+# Geocoding locations
+Use library ggmap loaded in library chunk, line 32 to obtain LAT/LON of unique locations
+
 [How to geocode a csv of addresses in R](http://www.storybench.org/geocode-csv-addresses-r/)
 [geocode](https://www.rdocumentation.org/packages/ggmap/versions/2.6.1/topics/geocode)
 [Package 'ggmap'](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf)
 ```{r}
-#install.packages('ggmap')
-#load('ggmap')
-citation('ggmap')
-library('ggmap')
+#cities <- unique(rad_data$CITY_NAME)
+##cities
+#states <-unique(rad_data$STATE_ABBR)
+#statelist <- c('NM', 'VA', 'CA', 'NE')
+#listofDF[1]
 ```
 #Test geocode
+Test returns lat/lon of first row in dataframe
 ```{r}
-#geocode("palo alto ca", output = "latlon", source="dsk")
-which( colnames(DW_data)=="V_ERAMS_LOCATION.STATE_ABBR")
-citystate <- paste(DW_data[1,8], DW_data[1,9])
+citystate <- paste(rad_data[1,which( colnames(rad_data)=="STATE_ABBR")],
+                   rad_data[1,which( colnames(rad_data)=="CITY_NAME")])
 geocode(citystate, output = "latlona", source="dsk")
+geocode("Honolulu HI", output = "latlona", source="dsk")
 ```
-#Make CityState list for geocoding
+#Make Unique list of CityState for geocoding
 as.character returns number instead of string
 to convert "list" to character 
 https://stackoverflow.com/questions/20336557/as-character-returning-numbers-instead-of-strings-r
 ```{r}
-
-locations <- data.frame(DW_data$LOC_NUM, DW_data$CITY_NAME,   
-                        DW_data$STATE_ABBR)
+locations <- data.frame("LOCNUM" = rad_data$LOC_NUM, 
+                        "CITY" = rad_data$CITY_NAME,   
+                        "STATE" =rad_data$STATE_ABBR)
+#length(unique(locations$LOCNUM))
 locations <- unique(locations)
-locations$citystate <- paste(locations$DW_data.CITY_NAME,
-                             locations$DW_data.STATE_ABBR)
+locations <- arrange(locations, LOCNUM)
+
+##Fix locaation errors:
+##Abbrieviation 'PC'is not found in geocode(), change STATE to 'Panama' 
+##One entry miscoded as Doswell SC should be Doswell VA 
+##confirmed by comparison of LOC_NUM, previously these were fixed after geocode()
+locations$STATE <- as.character(locations$STATE)
+locations$STATE[(locations$STATE == "PC")] <- "Panama"
+locations$STATE[(locations$STATE == "SC") & (locations$CITY == "DOSWELL")] <- "VA"
+
+
+locations$citystate <- paste(locations$CITY,
+                             locations$STATE)
+
 locations$lat <- NA
 locations$lon <- NA
 locations$address <- NA
 
-for(i in 1:5) {
-  result <- geocode(locations[i,4], output = "latlona",
-                      source="dsk")
+#Use tryCatch with geocode()
+#to bypass error from EPA Regions which have no specific LAT/LON
+for (i in 1:nrow(locations)) {
+  result <- tryCatch(geocode(locations[i,4], output = c("latlona"), source="dsk"),
+                      warning = function(w) {
+                        print("warning");
+                        locations[i,5] <- NA
+                        locations[i,6] <- NA  
+                        locations[i,7] <- NA
+                      },
+                      error = function(e) {
+                          print("error");
+                          next
+                      })
+  locations[i,5] <- as.numeric(result[2])
   locations[i,6] <- as.numeric(result[1])
-  locations[i,7] <- as.numeric(result[2])
-  locations[i,5] <- as.character(unlist(result[3]))
+  locations[i,7] <- as.character(unlist(result[3]))
 }
-locations$address <-'empty'
-is.character(locations$address)
+locations$lat <- as.numeric(locations$lat)
+##Revised latlong from latlong.net - geocoding put Honolulu in ocean on Kauia on the ##wrong islan
+locations$lat[locations$CITY == "HONOLULU"] = 21.306944
+locations$lon[locations$CITY == "HONOLULU"] = -157.858333
+locations$lat[locations$CITY == "KAUAI"] = 22.096440
+locations$lon[locations$CITY == "KAUAI"] = -159.526124
 ```
+##How to handle [Errors from Geocode](https://stackoverflow.com/questions/30770328/how-to-handle-error-from-geocode-ggmap-r)
+
+>loc = 'Blue Grass Airport'
+>x <- tryCatch(geocode(loc, output = c("more")),
+              warning = function(w) {
+                            print("warning"); 
+                            # handle warning here
+                        },
+              error = function(e) {
+                          print("error");
+                          # handle error here
+                      })
+      
+      
+                      
+##Graphic Visualization with R's ggmap
+https://blog.dominodatalab.com/geographic-visualization-with-rs-ggmaps/
+--------
+```{r}
+#qmap(location = "New Mexico State University")
+usa_center = as.numeric(geocode("United States"))
+USAMap = ggmap(get_googlemap(center=usa_center, scale=2, zoom=4), extent="normal")
+USAMap
+continental <- locations %>% filter(lon < -75 & lon > -120 & 
+                                      lat < 50 & lat > 20)
+USAMap + geom_point(data = continental, aes(x= lon, y= lat),
+                    col="blue", alpha=0.4) +
+  scale_y_continuous(limits = c(10,55))
+  
+```
+
+
+```{r}
+#qmplot(lon, lat, data = locations)
+
+us <- c(left = -125, bottom = 25.75, right = -67, top = 49)
+map <- get_stamenmap(us, zoom = 5, maptype = "toner-lite")
+ggmap(map)
+```
+
+
+```{r}
+
+ggmap(map) + geom_point(data = continental, aes(x= lon, y= lat),
+                    col="blue", alpha=0.4)
+```
+
+```{r}
+HI_center = as.numeric(geocode("Hawaii"))
+HI_center = c(-157.9, 21.2)
+HIMap = ggmap(get_googlemap(center=HI_center, zoom=7, extent="normal"))
+HIMap
+
+hawaii <- locations %>% filter(lon < -154 & lon > -161 & 
+                                      lat < 23 & lat > 17)
+HIMap  + geom_point(data = hawaii, aes(x= lon, y= lat),
+                    col="red", alpha=0.9)
+HI_data <- rad_data %>% filter(STATE_ABBR == "HI")
+#bounding box HI 
+HI <- c(left = -161, bottom = 17, right = -154, top = 23)
+HImap <- get_stamenmap(HI, zoom = 6, maptype = "toner-lite")
+ggmap(HImap)
+```
+
+
+
 
 > **Tip**: Before you create any plots, it is a good idea to provide a short
 introduction into the dataset that you are planning to explore. Replace this
@@ -169,7 +337,10 @@ There should be multiple code chunks and text sections; the first one below is
 just to help you get started.
 
 ```{r echo=FALSE, Univariate_Plots}
-
+ggplot(HI_data, aes(table, price, color = cut)) +
+    geom_point()+
+    scale_color_brewer(type='qual')+
+  scale_x_continuous(name ="Table", breaks=seq(50,80,2), limits = c(50,80))
 ```
 
 > **Tip**: Make sure that you leave a blank line between the start / end of
