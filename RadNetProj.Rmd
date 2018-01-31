@@ -138,9 +138,8 @@ colnames(rad_data_raw) <-gsub('.+\\.','',colnames(rad_data_raw))
 ***
 #Data Overview
 
-A quick inspection of the dataframe and the contents of each of the variables is undertaken in order to understand the breadth of the data and potential problems.
-Overall the raw dataframe now has 20 varibles and 504092 observations.  One variable *id* was added as part of the merge to easily identify the original source (Media Type) of the data.   
-
+A quick inspection of the dataframe and the contents of each of the variables was undertaken in order to understand the breadth of the data and potential problems.
+At this stage the raw dataframe has 20 variables and 504092 observations.  One variable *id* was added as part of the dataframes merge to easily identify the original source (Media Type) of the data.   
 
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE, DF_overview}
 ### DF rad_data_raw  Summary
@@ -160,7 +159,6 @@ table(rad_data_raw$id)
 ```
 
 #### (@)Variable Audit
-
 
   In the event of possible date manipulations, the date field was changed to type DATE instead of CHR.
 [^as.Date]:<https://www.rdocumentation.org/packages/base/versions/3.4.1/topics/as.Date>
@@ -340,7 +338,7 @@ n_distinct(rad_data_raw$ANALYTE_NAME)
 
 ```
  
-#### (@)Data Cleanup and Wrangling Recast Variables Types 
+#### (@)Data Cleanup and Wrangling (Recast Variables Types)
 Many of variables were levelled factors in the original data, but as the dataframes were merged unequal level factors were to coerced to CHR data type. As some of these variables do have limited categories, such as material type, measurement units, or time units which can be addressed as factors, it may be useful to recast these variable to factors. In the case of time units it is possible to also impose an order, e.g., S(econd) < M(inute) < H(our) < D(ay) < Y(ear). Where possible the variables are recast and levelled in the context of the compiled superset dataframe in order to improve future manipulations and analysis. 
 
 ```{r echo=FALSE,message=FALSE, warning=FALSE, factor_variables}
@@ -405,11 +403,7 @@ levels(rad_data_raw$HALF_LIFE_TIME_UNIT)
 ```
 
 #### (@)Geocoding Locations
-Using the package `ggmap` it is possible to obtain the latitude and longitude of locations listed in the dataframe from the city and state information. With this information it will be possible to represent data and information geographically.
-
-* [How to geocode a csv of addresses in R](http://www.storybench.org/geocode-csv-addresses-r/)  
-* [geocode](https://www.rdocumentation.org/packages/ggmap/versions/2.6.1/topics/geocode)  
-* [Package 'ggmap'](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf)  
+Using the package `ggmap`[^ggmap](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf) it is possible to represent data and information geographically.  Using the function `geocode()`[^geocode](https://www.rdocumentation.org/packages/ggmap/versions/2.6.1/topics/geocode),[^geocode_csv](http://www.storybench.org/geocode-csv-addresses-r/) the latitude and longitude of locations may be obtained from the city and state information. 
 
 ```{r echo=FALSE, include=FALSE}
 ### Test CHUNK run of `geocode()`
@@ -468,7 +462,7 @@ rad_data_raw$STATE_ABBR[(rad_data_raw$STATE_ABBR == "R10")]  <- "WA"
                         
 ```
 
-Rather than inundate the API with multiple requests for the same location a separate dataframe is created with only the unique places. 
+Rather than inundate the API with multiple requests for the same location a separate dataframe was created listing only unique city-state combinations.  This removes the instances where a city may have multiple monitoring stations (LOC_NUM). 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, get_latlona}
 ### Generate dataframe/list of City/State for geocoding
@@ -487,23 +481,27 @@ places$lon     <- NA
 places$address <- NA
 
 ##TESTING GEO CODE And check result
-geo_result <- geocode(places[9,3], output = c("latlona"))
-places[9,4] <- as.numeric(geo_result[2])
-places[9,5] <- as.numeric(geo_result[1])
-places[9,6] <- as.character(unlist(geo_result[3]))
-places[9,6]
-places[9,6] == places[9,3]
+n=140
+geo_result <- geocode(places[n,3], output = c("latlona"))
+places[n,4] <- as.numeric(geo_result[2])
+places[n,5] <- as.numeric(geo_result[1])
+places[n,6] <- as.character(unlist(geo_result[3]))
+places[n,6]
 
-### Split and strip geocode CITY STATE for comparison to citystate
-banana <- strsplit(gsub('[^[:alnum:] ]',"", places[9,6]), " +")[[1]]
-test_geo <-paste(toupper(banana[1]), toupper(banana[2]))
-miss_geo <- character()
-if (test_geo != places[9,3]) {miss_geo <- c(miss_geo, places[9,6])}
 ### Use tryCatch with geocode() in case of Errors from API
 ### to bypass error from places which have no specific LAT/LON
+### a pause (1sec) was used to help not to overload API, some entries were not 
+### returning results with 292 results this delays runtime ~5 min
 ###########################################################################
-for (i in 1:nrow(places)) {
-  geo_result <- tryCatch(geocode(places[i,3], output = c("latlona")),
+### How to handle [Errors from Geocode]
+### (https://stackoverflow.com/questions/30770328/
+###  how-to-handle-error-from-geocode-ggmap-r)
+
+miss_geo <- character()  ### Create list of geocoding potential issues/misses
+for (i in 1:58) {
+  z <- 0
+  repeat{
+    geo_result <- tryCatch(geocode(places[i,3], output = c("latlona")),
                       warning = function(w) {
                         paste("Location Issue ", places[i,3]);
                         places[i,4] <- NA
@@ -514,55 +512,86 @@ for (i in 1:nrow(places)) {
                           paste("Location error", places[i,3]);
                           next
                       })
-  places[i,4] <- as.numeric(geo_result[2])
-  places[i,5] <- as.numeric(geo_result[1])
-  places[i,6] <- as.character(unlist(geo_result[3]))
-  Sys.sleep(1)  # pause for API request
+    places[i,4] <- as.numeric(geo_result[2])
+    places[i,5] <- as.numeric(geo_result[1])
+    places[i,6] <- as.character(unlist(geo_result[3]))
+    Sys.sleep(1)  # pause before next API request
+    if (!is.na(places[i,6]) | z==2) break
+    if (is.na(places[i,6])) {
+      z = z+1
+      #print(paste(places[i,3], "--NA", z, i))
+      }
+  }
+  banana <- strsplit(gsub('[[:digit:]]',"", places[i,6]), ", +")[[1]]
+  test_geo <-paste(toupper(banana[1]),
+                     toupper(gsub('[[:blank:]]',"",banana[2])))
+  if (test_geo != places[i,3]) {miss_geo <- c(miss_geo, places[i,3])}
+  #if (i%%5 ==0) print(i)
 }
 
-places$lat <- as.numeric(places$lat)
+### Merge lat/lon infor into rad_data_raw
+#########################################
+
+rad_data_raw <- left_join(rad_data_raw, places, 
+                          by = c("CITY_NAME" = "CITY",
+                                 "STATE_ABBR" = "STATE") )
+
+```
+
+
+```{r echo=FALSE, include = FALSE, adjust_latlon }
+summary(places$lat)
+summary(places$lon)
 
 ### Revised latlong data from latlong.net - 
 ### geocoding from source = "dsk" puts Honolulu in ocean 
 ###           and Kauai on the wrong island as found during mapping
 ###########################################################################
-places$lat[places$CITY == "HONOLULU"] = 21.306944
-places$lon[places$CITY == "HONOLULU"] = -157.858333
-places$lat[places$CITY == "KAUAI"] = 22.096440
-places$lon[places$CITY == "KAUAI"] = -159.526124
+#places$lat[places$CITY == "HONOLULU"] = 21.306944
+#places$lon[places$CITY == "HONOLULU"] = -157.858333
+#places$lat[places$CITY == "KAUAI"] = 22.096440
+#places$lon[places$CITY == "KAUAI"] = -159.526124
 ```
 
-##How to handle [Errors from Geocode](https://stackoverflow.com/questions/30770328/how-to-handle-error-from-geocode-ggmap-r)
-
-`loc = 'Blue Grass Airport'
-x <- tryCatch(geocode(loc, output = c("more")),
-              warning = function(w) {
-                            print("warning"); 
-                            # handle warning here
-                        },
-              error = function(e) {
-                          print("error");
-                          # handle error here
-                      })`
-      
-      
-                      
 ##Graphic Visualization with R's ggmap
 
 <https://blog.dominodatalab.com/geographic-visualization-with-rs-ggmaps/>
+<https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/ggmap/ggmapCheatsheet.pdf>
 --------
 
-```{r echo=FALSE}
+```{r echo=FALSE, maptest}
 #qmap(location = "New Mexico State University")
 usa_center = as.numeric(geocode("United States"))
-USAMap = ggmap(get_googlemap(center=usa_center, scale=2, zoom=4), extent="normal")
-USAMap
-continental <- places %>% filter(lon < -75 & lon > -120 & 
-                                      lat < 50 & lat > 20)
-USAMap + geom_point(data = continental, aes(x= lon, y= lat),
-                    col="blue", alpha=0.4) +
-  scale_y_continuous(limits = c(10,55))
+usa_cont_bounds = c(left = -130.0,bottom = 11.0, right = -60.0, top = 51.0)
+USAMap = ggmap(get_googlemap(center=usa_center, scale=2, zoom=3, 
+                             extent ="device"))
+USAMap +
+  scale_y_continuous(limit = c(8,50)) +
+  scale_x_continuous(limit = c(-130,-62))          
+
+continental <- places %>% filter(between(lon, -130, -60) & 
+                                      between(lat, 8, 55))
+noncontinental <- places %>% filter(!between(lon, -130, -60))
+
+USAMap + 
+  scale_y_continuous(limit = c(8,50)) +
+  scale_x_continuous(limit = c(-130,-62)) +
+  geom_point(data = continental, aes(x= lon, y= lat), col="blue", alpha=0.4) 
   
+```
+```{r}
+
+###Test mapping
+USAmap2<-get_map(location='united states', zoom=3, maptype = "terrain",
+             source='google',color='color', urlonly = TRUE)
+USAmap2<-get_openstreetmap(bbox=usa_cont_bounds,scale = 475000000,
+                           color='color')
+ 
+USAmap2
+
+myMap <- get_stamenmap(bbox=usa_cont_bounds)
+ggmap(myMap)
+
 ```
 
 
@@ -578,13 +607,15 @@ ggmap(map) + geom_point(data = continental, aes(x= lon, y= lat),
 
 
 ```{r echo=FALSE, HAWAII}
-#HI_center = as.numeric(geocode("Hawaii"))
+#HAWAII AREA MAPS
 HI_center = c(-157.9, 21.2)
-HIMap = ggmap(get_googlemap(center=HI_center, zoom=7, extent="normal"))
+HIMap = ggmap(get_googlemap(center=HI_center, zoom=7, extent="normal"))+
+  scale_y_continuous(limit = c(19, 23)) #+
+  scale_x_continuous(limit = c(-161,-154))
 HIMap
 
-hawaii <- places %>% filter(lon < -154 & lon > -161 & 
-                                      lat < 23 & lat > 17)
+hawaii <- noncontinental %>% filter(between(lon,-164,-150) & 
+                                    between(lat,16,24))
 HIMap  + geom_point(data = hawaii, aes(x= lon, y= lat),
                     col="red", alpha=0.9)
 HI_data <- rad_data %>% filter(STATE_ABBR == "HI")
@@ -592,13 +623,47 @@ HI_data <- rad_data %>% filter(STATE_ABBR == "HI")
 
 ```{r}
 #bounding box HI 
-HI <- c(left = -161, bottom = 17, right = -154, top = 23)
-HImap <- get_stamenmap(HI, zoom = 6, maptype = "toner-lite")
-ggmap(HImap) + geom_point(data = hawaii, aes(x= lon, y= lat),
+HI <- c(left = -161, bottom = 18, right = -154, top = 23)
+HI <- c( -161, 23, -154, 18)
+HImap <- get_stamenmap(bbox= HI, zoom = 7, maptype = "toner-lite")
+ggmap(HImap) + 
+  geom_point(data = hawaii, aes(x= lon, y= lat),
                     col="red", alpha=0.9)
 ```
 
 
+```{r echo=FALSE, ALASKA}
+
+### ALASKA AREA MAPS
+#geocode("Alaska", output = "latlon")
+AK_center = c(-149.4937, 64.20084)
+AKMap = ggmap(get_googlemap(center=AK_center, zoom=4, extent="normal")) #+
+  scale_y_continuous(limit = c(,)) #+
+  scale_x_continuous(limit = c())
+AKMap
+
+alaska <- noncontinental %>% filter(between(lon,-167,-130) & 
+                                    between(lat,53,65))
+AKMap  + geom_point(data = alaska, aes(x= lon, y= lat),
+                    col="purple4", alpha=0.9)
+```
+
+
+```{r echo=FALSE, micronesia}
+
+### MICRONESIA AREA MAPS
+#geocode("Songsong", output = "latlon") #center of Marianna Islands (MIsle)
+MIsle_center = c(145.1459, 14.14199)
+MIsleMap = ggmap(get_googlemap(center=MIsle_center, zoom=8, extent="normal")) #+
+  scale_y_continuous(limit = c(,)) #+
+  scale_x_continuous(limit = c())
+MIsleMap
+
+mariannas <- noncontinental %>% filter(between(lon,140,150))
+MIsleMap  + geom_point(data = mariannas, aes(x= lon, y= lat),
+                    col="deeppink", alpha=0.9)
+```
+```
 
 
 ```{r}
