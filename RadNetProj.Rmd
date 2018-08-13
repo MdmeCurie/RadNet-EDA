@@ -446,7 +446,8 @@ alaska <- noncontinental %>% filter(between(lon,-167,-130) &
 AKmap <- AKmap  + geom_point(data = alaska, aes(x= lon, y= lat),
                     col="purple4", alpha=0.9)
 
-grid.arrange(HImap,AKmap, nrow = 1)
+grid.arrange(HImap,AKmap, nrow = 1, 
+             top="EPA RadNet Monitoring Stations: Hawaii & Alaska")
 
 ```
 Of the half million observations about one-half are air samples (air-filter + air-charcoal). 
@@ -733,7 +734,7 @@ Several new varialbles were created, especially for the handling of the geograph
 #### Data Cleansing/Unusual Distributions:
 Besides the missing result data, there is any interesting long tailed positive skew for the distribution of sample replicates.  
 
-Most cleaning and date munging involved verifying and reformating location data. A few database issues were found, e.g.: the abbreviation *PC* was not recognized by the API and was changed to "Panama Canal"; the city of Doswell, SC does not appear to exist, but several Doswell, VA observations were found in the dataframe so a single Doswell, SC was changed to VA. Several entries were listed as EPA Regions 1 to 10. In an effort to geo-locate the data, each region number was changed to the location of the headquarters for that EPA region.[^eparegions]. Finally, a new dataframe was created with the unique city-state combinations. This remove instances where a city has multiple monitoring stations so that the google maps API would not be re-queried for the same location. 
+The column names were tidied and shortened. Most cleaning and date munging involved verifying and reformatting location data. A few database issues were found, e.g.: the abbreviation *PC* was not recognized by the API and was changed to "Panama Canal"; the city of Doswell, SC does not appear to exist, but several Doswell, VA observations were found in the dataframe so a single Doswell, SC was changed to VA. Several entries were listed as EPA Regions 1 to 10. In an effort to geo-locate the data, each region number was changed to the location of the headquarters for that EPA region.[^eparegions]. Finally, a new dataframe was created with the unique city-state combinations. This remove instances where a city has multiple monitoring stations so that the google maps API would not be re-queried for the same location. 
 
 ```{r stateregions, echo=FALSE,  message=FALSE, warning=FALSE}
 ### Include *region* as recognized by choroplethr
@@ -772,46 +773,67 @@ rm(state_regions)
 
 ## Bivariate Analysis Plots - Variable Interactions
 
-Using a choropleth map we can easily compare information by state. For example, while the number of observations entered into the RadNet database correlates well to the density of monitoring stations as seen in the Monitoring station map the number of empty results is not a simple portion of the total number of samples entered by a state. Some states with moderate/low number of observations have a higher percentage of empty results, e.g., Kentucky with <4,500 entries has > 17% empty, while California with many more samples (>19,000) has <14.8% NA results. 
+Using maps we can compare information by location. With a choropleth map we can plot, for instance the number of observations entered by state.  This seems to correlate well to the density of monitoring stations. More entries for states that have multiple monitoring stations. 
+
+However, if we plot the number of empty entries, the trend is different. Some states with moderate/low number of observations have a higher percentage of empty results, e.g., Kentucky with <4,500 entries has > 17% empty, while California with many more samples (>19,000) has <14.8% NA results. 
 
 ```{r uschoropleth, echo=FALSE,  message=FALSE, warning=FALSE}
 
 ### Choropleth of Sample Analyses by State
-bystate_numanalyses <- rad_data_raw %>% group_by(region) %>%
+bystate <- rad_data_raw %>% group_by(region) %>%
   summarise(value = n())
 
-choro1 <-state_choropleth(bystate_numanalyses, 
-                 title="Number of RADNet Analyses by State") + 
+choro_entries <-state_choropleth(bystate, 
+                 title="RADNet Analyses by State") + 
                  labs(subtitle = '1978-2017',
                       caption = 'EPA RadNet Data') +
   theme(plot.caption = element_text(size = rel(0.5)),
-         plot.title = element_text(hjust=0.5),
+         plot.title = element_text(hjust=0.75),
          plot.subtitle = element_text(size=rel(.75), hjust = 0.5))
 
 ### Choropleth of Empty Results by State
 ### New Colour Scheme
 ### https://www.r-bloggers.com/advanced-choroplethr-changing-color-scheme/
-bystate_NaN <- rad_data_raw %>% filter(is.na(RESULT_AMOUNT)) %>% 
+bystate <- left_join(bystate, (rad_data_raw %>% filter(is.na(RESULT_AMOUNT)) %>% 
                group_by(region) %>%
-               summarise(empty = n())
-bystate_NaN$totalanal <- bystate_numanalyses$value
-bystate_NaN$value <- round(bystate_NaN$empty/bystate_NaN$totalanal*100, digits =1)
+               summarise(empty = n())),
+                          by = "region")
+colnames(bystate)[2] <- "totalanal"
+bystate$value <- round(bystate$empty/bystate$totalanal*100, digits =1)
 
 col.pal<-brewer_pal(palette = "GnBu")(7)
 #show_col(brewer_pal(palette = "Reds")(7))
 
-state_nan <-StateChoropleth$new(bystate_NaN)
+state_nan <-StateChoropleth$new(bystate)
 state_nan$title <- "Empty Result RADNet Entries by State"
 state_nan$ggplot_scale <- scale_fill_manual(name="% Empty Result Entries",
                                          values=col.pal, drop=FALSE)
   
-choro2 <-state_nan$render()  +
+choro_nan <-state_nan$render()  +
   theme(plot.caption = element_text(size = rel(0.5)),
          plot.title = element_text(hjust=0.5),
          plot.subtitle = element_text(size=rel(.75), hjust = 0.5)) + 
   labs(subtitle = '1978-2017', caption = 'EPA RadNet Data')
 
-grid.arrange(choro1,choro2, ncol=1)
+choro_entries
+choro_nan
+```
+
+```{r crosstab}
+
+#### Cross tabulation of categorical variables 
+empty.tab <- table(rad_data_raw$STATE_ABBR, rad_data_raw$Y)
+round(prop.table(empty.tab, 1), 2)
+State_noresults <- as.data.frame(round(prop.table(empty.tab, 2), 2))
+State_noresults <- State_noresults[order(-State_noresults$Freq),]
+chisq.test(empty.tab)
+
+p <- ggplot(State_noresults, aes(Var1, Freq)) + 
+  geom_point()+
+  facet_wrap(~Var2)  
+p
+library(GGally)
+ggcorr()
 ```
 
 Many data analyses were undertaken with a subset of the data to better understand the data and relationships between the variables. An initial subset was geographic in which data from Hawaii was filtered and reviewed. From a simple geographic map we can see that the majority of samples in Hawaii were from Honolulu and that Honolulu also has the most varied of sample types with air-Filters being the most common type of sample. 
