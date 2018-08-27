@@ -1,7 +1,7 @@
 ---
 title: "RadNet Exploratory Data Analysis with RStudio"
 author: "Wendy Bisset"
-date: "August 13, 2018"
+date: "August 27, 2018"
 output:
   html_document:
     df_print: paged
@@ -28,12 +28,12 @@ library(GGally)
 
 ##Data Source and Background Information 
 
-The US Environmental Protection Agency maintains several public databases on environmental data.[^EPA] One such database, **RadNet**,[^RadNetOverview] is a system of geographically distributed monitoring stations which sample and test for a number of radiochemical analytes (e.g., gross beta (β), cesium-137, iodine-131) in the nation's air, precipitation, and drinking water. RadNet provides historical data to estimate long-term trends in environmental radiation levels and as a means to estimate levels of radioactivity in the environment. The stations are located across the US as well as American Territories. The current database primarily consists of data collected since 1978 though some data dates back to 1973 from RadNet's precursor, ERAMS (Environmental Radiation Ambient Monitoring System).
+The US Environmental Protection Agency maintains several public databases on environmental data.[^EPA] **RadNet**[^RadNetOverview] is a system of geographically distributed monitoring stations which sample and test for a number of analytes (e.g., gross beta (β), cesium-137, iodine-131) in the nation's air, precipitation, and drinking water. RadNet provides historical data to estimate long-term trends in environmental radiation levels and as a means to estimate levels of radioactivity in the environment. Stations are located across the US as well as American Territories. The database primarily consists of data collected since 1978 though some data dates back to 1973 from RadNet's precursor, ERAMS (Environmental Radiation Ambient Monitoring System).
  
 [^EPA]:  <https://www.epa.gov/enviro/envirofacts-overview>
 [^RadNetOverview]: <https://www.epa.gov/enviro/radnet-overview>
 
-All data for this study was downloaded in September 2017 as .csv files from the RadNet website. According to the EPA's [Envirofacts Data Service API](https://www.epa.gov/enviro/web-services) data output is limited to 10000 rows of data at a time from a maximum of three tables. Consequently, the  data for each media type was downloaded by decade (up-to 1989, 1990-1999, 2000-2009, 2010-2017) and the resulting .csv files were loaded into RStudio and then merged[^merged] into a single R dataframe.
+All data for this study was downloaded from the RadNet website in September 2017 as csv files. According to the EPA's [Envirofacts Data Service API](https://www.epa.gov/enviro/web-services) data output is limited to 10000 rows of data at a time from a maximum of three tables. Consequently, the  data for each material was downloaded by decade (up-to 1989, 1990-1999, 2000-2009, 2010-2017) and the resulting .csv files were loaded into RStudio and then merged[^merged] into a single R dataframe.
 
 [^merged]: https://psychwire.wordpress.com/2011/06/03/merge-all-files-in-a-directory-using-r-into-a-single-dataframe/
 
@@ -96,7 +96,7 @@ rad_data_raw <- bind_rows(list(air_data, drinking_water_data,
 
 ##Data Overview and Tidying 
 
-The original raw consolidated dataframe has 19 variables and 504092 observations. One variable was added as a tracker in the merge operation to track the media dataframe from which the observation originated. From a cursory glance, variables of interest are monitoring station locations, sample types collected, and analytes. Dates and analysis amounts will be helpful in the investigation of these variables. 
+The original raw consolidated dataframe has 19 variables and 504092 observations. One variable was added in the merge operation tracking the media dataframe from which the observation originated. From the first cursory glance, variables of interest were monitoring station locations, sample types (material) collected, and analytes. Dates and analysis amounts will be helpful in the investigation of these variables. 
 
 Variable names were shortened and several variables were recast as factors with ordered levels where it made sense that an inmposed order may be useful, e.g., S(econd) < M(inute) < H(our) < D(ay) < Y(ear). In the event of possible date manipulations, the date field was changed to type DATE instead of CHR.[^as.Date]
 
@@ -139,7 +139,7 @@ rad_data_raw$HALF_LIFE_TIME_UNIT <-
 
 ###Univariate Plots, Tables and Summaries
 
-A quick summary of some of the variables shows the most common values or components of the database. Air-filter samples dominate as does the result unit pCi/m^3^ while the analytical sample size is split between liters (L) and cubic meters (m^3^).
+A quick summaries of the variables show the most common values and components of the database. Air-filter samples dominate as does the result unit pCi/m^3^ while the analytical sample size is split between liters (L) and cubic meters (m^3^).
 
 ```{r test_summaries, echo=FALSE, eval = FALSE, include=FALSE, warning=FALSE, message=FALSE}
 #names(rad_data_raw)
@@ -150,24 +150,21 @@ summary(rad_data_raw$ANA_UNIT)
 ```
 
 #####Location Numbers, Cities, and States
-The location numbers range from 1 to 4157, but there are only 324 unique sampling locations and these correspond to one of 289 cities or regions in the US, US territories, the Pananma Canal (PC) or Ottawa, Canada (ON). 
-
-The entries are not evenly distributed amongst the monitoring sites. Some sites have have $\geq$ 12,000 entries while others have only a single entry. Highly monitored states have $\geq$ 20,000 entries while some areas have < 500 entries. Several cities have multiple monitoring stations. Oakridge, Tennesse tops this list with 11 different monitoring location numbers.
+The location numbers range from 1 to 4157, but there are only 324 unique sampling locations with most values <500, the distribution is a long tail right skeew. The location numbers correspond to 289 cities or regions in the US, US territories, the Pananma Canal (PC) or Ottawa, Canada (ON). Several cities have multiple monitoring stations, e.g., Oakridge, Tennesse has 11 different monitoring location numbers. 
 
 ```{r locations, echo=FALSE, message=FALSE, warning=FALSE}
-#### Variable Audit LOC_NUM, CITY_NAME, STATE_ABBR ####
-
 ### LOC_NUM -> INT  1-4157, 324 distinct locs ####
+
 summary(rad_data_raw$LOC_NUM)
-n_distinct(rad_data_raw$LOC_NUM)
+#n_distinct(rad_data_raw$LOC_NUM)
 ggplot(rad_data_raw, aes(LOC_NUM)) +
- geom_histogram(bins =1000, fill = "salmon")+
+ geom_histogram(bins =100, fill = "salmon")+
  labs(title = "Analysis Counts by Location Number",
       x = "Location ID", y = "COUNT")+
  theme(plot.title = element_text(hjust = 0.5))
 
 ### City Locations ####
-n_distinct(rad_data_raw$CITY_NAME)
+#n_distinct(rad_data_raw$CITY_NAME)
 ggplot(rad_data_raw, aes(CITY_NAME)) + geom_bar()+
  labs(title = "Cities/Regions in RadNet",
       x = "CITY", y = "COUNT")+
@@ -182,12 +179,12 @@ city_obs_locs <- rad_data_raw %>%
 head(city_obs_locs, 10)
 ```
 
-The top and bottom five locations, by city or state, are tabularized by number of observations for that location or area. Some locations have only 1 entry in the dataframe.
+The entries are not evenly distributed amongst the monitoring sites. Some sites have have $\geq$ 12,000 entries while others have only a single entry. Highly monitored states have $\geq$ 20,000 entries while some areas have < 500 entries. The top and bottom five locations, by city and state, are tabularized by number of observations for that location or area.
 
 ```{r EPA_regions, echo=FALSE, message=FALSE, warning=FALSE}
-### CITY_NAME -> CHR, 289 Distinct City, county or EPA Region ####
+#### CITY_NAME -> CHR, 289 Distinct City, county or EPA Region ####
 
-### 10 EPA Regions reset to corresponding Headquarter City ####
+#### 10 EPA Regions changed to corresponding Headquarter City ####
 ### R01 New England (CT, ME, MA, NH, RI, VT and 10 tribal nations)
 rad_data_raw$CITY_NAME[(rad_data_raw$STATE_ABBR == "R01")]   <- "BOSTON"
 rad_data_raw$STATE_ABBR[(rad_data_raw$STATE_ABBR == "R01")]  <- "MA"
@@ -231,14 +228,11 @@ staedte <- staedte[order(staedte$n, decreasing = T),]
 ###                CNMI - Commonwealth of the No. Mariana Islands (Saipan)
 ###                EPA Regions R01- R10 -changed above to HDQs
 ###                ON Ottawa, ON
-#######################################################################
 ### geocode does not find 'PC', changed STATE_ABBR to 'Panama' 
 ### Doswell SC changed to Doswell VA
 rad_data_raw$STATE_ABBR[(rad_data_raw$STATE_ABBR == "PC")] <- "PANAMA"
 rad_data_raw$STATE_ABBR[(rad_data_raw$STATE_ABBR == "SC") &
                           (rad_data_raw$CITY_NAME == "DOSWELL")] <- "VA"
-
-n_distinct(rad_data_raw$STATE_ABBR)
 
 staat <- count(rad_data_raw,STATE_ABBR)  # top states
 staat <- staat[order(staat$n, decreasing = T),]
@@ -247,7 +241,6 @@ mytabletheme <- gridExtra::ttheme_default(
     core = list(fg_params=list(cex = 0.5)),
     colhead = list(fg_params=list(cex = 0.5)),
     rowhead = list(fg_params=list(cex = 0.5)))
-
 
 grid.arrange(tableGrob(head(staedte, n=5), theme = mytabletheme),
              tableGrob(head(staedte[order(staedte$n, decreasing = FALSE),], n=5),
@@ -271,19 +264,17 @@ A simple search turned up the R package `ggmap`[^ggmap] which makes it possible 
 [^ggmap-vis2]: D. Kahle and H. Wickham. ggmap: Spatial Visualization with ggplot2. The R Journal, ##5(1), 144-161. URL http://journal.r-project.org/archive/2013-1/kahle-wickham.pdf
 [^geocode]: https://www.rdocumentation.org/packages/ggmap/versions/2.6.1/topics/geocode
 [^geocode_csv]: http://www.storybench.org/geocode-csv-addresses-r/
-
 [^choroplethr]: https://www.rdocumentation.org/packages/choroplethr/versions/3.6.1
 [^choropleth]: https://en.wikipedia.org/wiki/Choropleth_map
 [^eparegions]: https://www.epa.gov/aboutepa#pane-4
 
 ```{r csv_latlona, echo=FALSE, message=FALSE, warning=FALSE}
 #### TO REDUCE RUN TIME lat/lon data obtained from Google Maps API was saved
-#### to file "places_data.csv" 
+#### to file "places_data.csv"                                          ####
 #### Code for generating original file is chunk: get_latlona
 #### Code chunk to obtain this info is set to "eval = FALSE" 
 
 places <- read.csv("places_data.csv", header=TRUE)
-########################################################################
 ```
 
 ```{r get_latlona, eval=FALSE, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
@@ -377,7 +368,7 @@ rad_data_raw <- left_join(rad_data_raw, places,
                                  "STATE_ABBR" = "STATE") )
 ```
 
-Most of the monitoring locations can be represented on a cropped map of North America. The eastern seaboard has the most monitoring stations. Filtering data by lat/long we find that there are 12 remaining monitoring locations, not represented on this map.
+Most of the monitoring locations can be represented on a cropped map of North America. The eastern seaboard has the most monitoring stations. Filtering data by lat/long we find 12 monitoring locations not represented on this map.
 
 ```{r northamericamap, echo=FALSE,  message=FALSE, warning=FALSE}
 usa_center = as.numeric(geocode("United States"))
@@ -398,21 +389,14 @@ USAMap +
   labs(caption = 'EPA RadNet Monitoring Locations 1978-2017') +
   theme_map()
 
-grid.arrange(tableGrob(head(noncontinental, n=12), theme = mytabletheme),
-             top = "Non-North American Continent RADNet Monitoring Sites",
-             bottom = textGrob("EPA RADNet 1978-2017",
-                               gp = gpar(fontface = 3, fontsize = 9),
-                               hjust = 3,
-                               x = 1))
+grid.arrange(tableGrob(head(noncontinental, n=12), theme = mytabletheme))
 ```
 
-Filtering again we can look closer at regional monitoring stations such as those in Hawaii and Alaska on state maps. 
+Filtering again we can look at regional monitoring stations such as those in Hawaii and Alaska on different types of state maps. 
 
 ```{r regionmaps, echo=FALSE,  message=FALSE, warning=FALSE}
-#################################
-###  HAWAII AREA MAPS
+####  HAWAII AREA MAPS ####
 ###  Using stamen map centered
-#################################
 HI_center <- c(left = -161, bottom = 18, right = -154, top = 23)
 HImap <- get_stamenmap(bbox= HI_center, zoom = 7, maptype = "toner-lite") 
 HImap <- ggmap(HImap) + theme_map()
@@ -423,9 +407,7 @@ HImap_stations <- HImap +
   geom_text(data = subset(hawaii, CITY == "KAHUKU" | CITY == "KAUAI"),
             aes(label = CITY), nudge_y = 0.2, size = 2)
 
-#################################
-### ALASKA AREA MAP
-#################################
+#### ALASKA AREA MAP ####
 AK_center = c(-149.4937, 64.20084)
 AKmap <- ggmap(get_googlemap(center=AK_center, 
                              zoom=4, extent="normal")) +
@@ -483,12 +465,11 @@ rm(state_regions)
 ```
 
 #####Material ID -> Sample Types
-A bar graph yields a better visual of the distribution of sample material. As noted above, air samples truly dominate with nearly $\frac{1}{2}$ of the entries at a quarter million observations. 
+A bar graph yields a good visual of the distribution of sample material. As noted above, air samples  dominate with nearly $\frac{1}{2}$ of the entries, nearly a quarter million observations. 
 
 ```{r variable_matID, echo=FALSE, message=FALSE, warning=FALSE}
-### MAT_ID -> type CHR, 6 material types - air_data is subdivided 
+#### MAT_ID -> type CHR, 6 material types - air_data is subdivided  ####
 ###               AIR-CHARCOAL (Discontinued in 1980s) & AIR-FILTER
-#######################################################################
 
 sample_types <- ggplot(rad_data_raw, aes(MAT_ID)) + 
   geom_bar(fill = "SteelBlue") +
@@ -509,13 +490,12 @@ sample_types
 ```
 
 #####Sample IDs and Analytes
-Just over $\frac{1}{2}$ of the sample ID numbers are unique and most of these Sample IDs (84%) are single entries. The remaining samples have as many as 25 entries (replicates). Perhaps this should not be surprising as there are 61 different analytes for which each sample might be analysed. *Gross Beta* accounts for nearly $\frac{1}{2}$ of the observations, but the top 10 most analysed analytes account for ~85% of the dataframe observations.
+Just over $\frac{1}{2}$ of the sample ID numbers are distinct and 84% of these are single entries. The remaining sample IDs have as many as 25 entries. This should not be surprising as there are 61 different analytes for which each sample might be analysed, though *Gross Beta* accounts for nearly $\frac{1}{2}$ of the observations. The top 10 most analysed analytes account for ~85% of the dataframe observations.
 
 ```{r variable_sampanaID, echo=FALSE, message=FALSE, warning=FALSE}
-### SAMP_ID -> type CHR, sample ID number, some are alpha-numeric, 
+#### SAMP_ID -> type CHR, sample ID number, some are alpha-numeric, ####
 ###                roughly 1/2 the number of observations, i.e, multiple
 ###                observations (analyses) for a single SAMP_ID
-#######################################################################
 #n_distinct(rad_data_raw$SAMP_ID)/length(rad_data_raw$SAMP_ID)
 samp_replicates <- rad_data_raw %>%
                    group_by(SAMP_ID) %>%
@@ -527,9 +507,8 @@ sample_reps <- ggplot(samp_replicates, aes(n)) +
   labs(title = "Distribution of Sample ID Replicates",  
        x = "Sample ID Replicates", y = "COUNT")
 
-### ANALYTE_ID -> CHR,  61 unique analytes of interest
+#### ANALYTE_ID -> CHR,  61 unique analytes of interest ####
 ### Most common Gross Beta 232,387
-###################################################################
 analytes <- rad_data_raw %>% group_by(ANALYTE_ID) %>% 
   summarise(n = n(), percent_tot = round(n()/504092*100,2))
 top_analytes <- filter(analytes, n > 9000)
@@ -544,22 +523,22 @@ colnames(top_analytes) <- c("Analyte", "n", "% Observations")
 
 grid.arrange(sample_reps, 
              tableGrob(top_analytes, theme = mytabletheme), 
-             top = "Samples & Analytes in RadNet Database",
-             bottom = textGrob("EPA RADNet 1978-2017",
-                               gp = gpar(fontface = 3, fontsize = 9),
-                               hjust = 1,
-                               x = 1),
+             # top = "Samples & Analytes in RadNet Database",
+             # bottom = textGrob("EPA RADNet 1978-2017",
+             #                   gp = gpar(fontface = 3, fontsize = 9),
+             #                   hjust = 1,
+             #                   x = 1),
              nrow = 1)
 
-View(samp_replicates %>% group_by(n) %>% summarise(reps = n())
-     %>% mutate(samples = reps/n))
+View(samp_replicates %>% group_by(n) %>% summarise(entries = n())
+     %>% mutate(samples = entries/n))
 
 ```
 
 #####Sample Sizes and Units of Measure
-While sample size values are grouped about the values 1, 5 and 5,000, this does not provide a valid comparison of *size* as the *unit size* is needed to provide context. A 1 L sample is 1000 times the size of a 1 mL sample. The units, while clarifying relative size can also indicate sample type: i.e., mL and L are generally for liquids; mg and g for solids and ($m^3$) is for gas samples. A small fraction of entries have no designated unit (NA), while about $\frac{1}{2}$ of the measured units are for gases ($m^3$). 
+A distribution of sample size **values** reveals groupings at 1, 5 and 5,000, however, this is not a valid comparison of *size* as  *unit size* is needed to provide context. For example, 1 L sample is 1000 times the size of a 1 mL sample. Units can also indicate sample type, about $\frac{1}{2}$ of the measured units are $m^3$ generally used for gases, most of the other half are liquids (mL and L); a very small fraction are solids (mg and g) and a few entries have no designated unit. 
 
-This ties well to the earlier observations that the predominant samples are air-filter & gross beta. It is likely that $\frac{1}{2}$ of the observations in this database are gross beta measurements in air samples ($m^3$). The next biggest group of sample units is the liter (L) which matches well with the remaining sample types being liquids: i.e, precipitation, milk, and water (drinking & surface)
+This ties well to the earlier observation that the predominant sample type is air-filter. The next biggest group, liter (L), matches well with the remaining sample types being liquids, i.e, precipitation, milk, and water (drinking & surface)
 
 ```{r variable_anaUnit_size, echo=FALSE, message=FALSE, warning=FALSE}
 ### ANA_SIZE -> type NUM, numeric ####
@@ -578,9 +557,10 @@ table(rad_data_raw$ANA_UNIT)     # M3 followed by L
 ```
 
 #####Analytical Procedures and Duration
-There are 35 analytical procedure numbers with **Procedure 1** returned as the mode[^getmode] of this variable (~42% of the entries). Procedures 1 and 9 account for 74% of the entries and a small high density grouping about 120 shows procedures 118 and 119 accounting for another 19 % of the entries.  Thus, most (93%) of the entries are analyzed with one of four procedures. A duration variable indicates that while most tests take under 20 hours there are some tests/procedures which are over 80 hours.
+Procedures 1 and 9 account for 74% of the entries though there are 35 analytical procedure numbers. **Procedure 1** is the mode[^getmode] of this variable with ~42% of the entries. A small high density grouping about 120 shows procedures 118 and 119 accounting for another 19 % of the entries. Thus, 93% of the entries are analyzed with one of four procedures. A duration variable indicates that while most tests take under 20 hours there are some tests/procedures which are over 80 hours.
 
 [^getmode]:  Getmode function https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+
 ```{r variable_procedures_dur, echo=FALSE, message=FALSE, warning=FALSE}
 ### ANA_PROC_NUM -> INT; 35 analytical procedures used for analysis ####
 ###               Proc Num range from 1 to 170 with mode = ProcNum 1
@@ -608,19 +588,15 @@ test_duration
 ```
 
 #####Result Amount, MDC, CSU, and Units of Measure
-Result amounts like sample sizes cannot be directly compared as this is more or less meaningless without a Result Unit. However, a plot of the raw result values show the greatest density around 0.01. The overlayed plots of the minimum detectable concentration (MDC) and combined standard uncertainty (CSU) shows that both MDC and CSU have their greatest density at <0.001, a factor of 10 lower than the results. Though this would need confirmation of the unit of measurement the distribution is reassuring as the uncertainties and detection limits should be much less than the actual measurment. 
-
-Result units themselves are distributed similar to the sample units in that about $\frac{1}{2}$ of the measured units are for gases (pCi/m^3^ and aCi/m^3^).
-
-Sixteen percent (81,921) of the observations have no result entry, result amount is NA. This seems odd as RadNet is designed specifically for the documentation of analtye concentrations, i.e., results.  A separate dataframe was created which filters out the empty RESULT_AMOUNT observations, *rad_data*. Using a new *complete* variable (Y/N) derived from the full and NA's entries the result amounts can represented by 1 and 0, respectively which allows for proportional analysis.
+Result amounts, like sample sizes, cannot be directly compared as this is more or less meaningless without a Result Unit. However, a plot of the raw result values show the greatest density around 0.01. Overlaying the minimum detectable concentration (MDC) and combined standard uncertainty (CSU) shows that both MDC and CSU have their greatest density at <0.001, a factor of 10 lower than the results. Though this would need confirmation of the unit of measurement the distribution is reassuring as the uncertainties and detection limits should be much less than the actual measurment. 
 
 ```{r result_amts, echo=FALSE, message=FALSE, warning=FALSE}
 ## RESULT_AMOUNT -> NUM, -200 - 2.57e5, 81291 NA's
-summary(rad_data_raw$RESULT_AMOUNT)
+#summary(rad_data_raw$RESULT_AMOUNT)
 ### CSU -> NUM, 0-15000 Combined Standard Uncertainty,  81921 NA's (16%) ####
-summary(rad_data_raw$CSU)
+#summary(rad_data_raw$CSU)
 ### MDC -> NUM, 0-9700 Min Detectable Concentration; 218822 NA's (43%) ####
-summary(rad_data_raw$MDC)
+#summary(rad_data_raw$MDC)
 
 ggplot(rad_data_raw, alpha = 0.5)+
   geom_density(aes(x=RESULT_AMOUNT, fill = "RESULT"))+
@@ -632,7 +608,13 @@ ggplot(rad_data_raw, alpha = 0.5)+
        subtitle ="(no Unit Normalization)", 
        x = 'RAW Values',
        y = 'Count')
+```
 
+Result units themselves are distributed similar to the sample units with about $\frac{1}{2}$ of the measured units for gases (pCi/m^3^ and aCi/m^3^).
+
+Interestingly, 16% (81,921) of the observations have no result entry (result amount is NA). This seems odd as RadNet is designed specifically for the documentation of analtye concentrations, i.e., results. New variables were derived from the full and NA result entries to numerically represent complete 1 and empty 0 to allow for easy proportional and other analyses.
+
+```{result_units, echo=FALSE, message=FALSE, warning=FALSE}
 ### RESULT_UNIT ->  
 ###                (air = ACI/m3, PCI/M3 (45%); solids = g/L, DPM/GC;
 ###                 liquids = pCi/L (48%))                            ####
@@ -644,26 +626,38 @@ rad_data_raw$Y <- ifelse(rad_data_raw$complete == "Y", 1, 0)
 rad_data_raw$N <- ifelse(rad_data_raw$complete == "N", 1, 0)
    
 ### Create df without RESULT_AMOUNT == NA                             ####
-rad_data <- rad_data_raw[complete.cases(rad_data_raw[,"RESULT_AMOUNT"]),]
+rad_data <- rad_data_raw %>% filter(!is.na(RESULT_AMOUNT))
+#rad_data <- rad_data_raw[complete.cases(rad_data_raw[,"RESULT_AMOUNT"]),]
 ```
 
 #####Result Dates 
-A Simple distribution of entries over result dates, yields typical count ranges are about 125 to 250 entries, but there are regular spikes 50% to 100% above the baseline. These spikes occur on annual intervals; until 2009 the spikes are at mid-year (7/1) afterwhich they appear year-end (12/31). Grouping the observations by date ranges gives a histogram-like plot in which you can see a drop in entries around 1989 and again 10 years later, though there is a subtle increase from 1999 to 2012. The drop in 2017 cannot be verified as the data was only downloaded through September.
+A simple distribution of entries over result dates, yields typical daily count ranges of 125 to 250 entries, but regular spikes of 50% to 100% above the baseline are noted. These spikes occur on annual intervals; until 2009 the spikes are at mid-year (7/1) afterwhich they appear year-end (12/31). Grouping the observations by a 2 year date range gives a bar plot in which you can see a drop in entries around 1989 and again 10 years later, though there is a subtle increase from 1999 to 2012. The drop in 2017 cannot be verified as the data was only downloaded through September.
 
 ```{r variable_date, echo=FALSE, message=FALSE, warning=FALSE}
-###  RESULT_DATE -> CHR transform to DATE range from 7/1/1978 to 7/26/2017
+####  RESULT_DATE -> CHR transform to DATE range from 7/1/1978 to 7/26/2017 ####
 ###  DATE set to ISO 8601 format:  %F == "%Y-%m-%d"
-#######################################################################
-rad_data_raw$RESULT_DATE <- as.Date(rad_data_raw$RESULT_DATE, "%F")
 
-analyses_bydate <- ggplot(rad_data_raw, aes(RESULT_DATE)) + 
-  geom_bar(color = "steelblue ", stat = "count") +
-  labs(title="Number of Analyses Results by Date", x=NULL, y = "Count") +
-  theme(plot.title = element_text(hjust = 0.5))
-analyses_bydate
+rad_data_raw$RESULT_DATE <- as.Date(rad_data_raw$RESULT_DATE, "%F")
 
 View(rad_data_raw %>% group_by(RESULT_DATE) %>% select(RESULT_DATE, RESULT_AMOUNT) %>% 
                  summarise(n = n())  %>% filter(n>400))
+
+#### DATE SPIKES ####
+# analysis_counts <- c(510,565,480,490,1025,760,325,312 )
+# analysis_dates <- c("1996-07-01","1997-07-01", "1998-07-01","1999-07-01",
+#                     "2009-12-31", "2010-12-31","2011-12-31", "2012-12-31")
+# label_df <- data.frame(analysis_counts, analysis_dates)
+# label_df$analysis_dates <- as.Date(label_df$analysis_dates)
+
+date_spikes <- ggplot(rad_data_raw, aes(RESULT_DATE)) + 
+  geom_line(color = "steelblue ", stat = "count") +
+  scale_x_date(date_breaks = "5 year", date_minor_breaks = "year")+
+  labs(title="Number of Analyses Results by Date", x=NULL, y = "Count") +
+  # geom_point(data = label_df, aes(x=label_df$analysis_dates,
+  #                                 y=label_df$analysis_counts), color = "red") +
+  theme(axis.text.x = element_text(angle=30),
+        plot.title = element_text(hjust = 0.5))
+date_spikes 
 
 ### New Vectors to group data by date ranges of 6 mos, 1 yr, 2 yr       ####
 rad_data_raw$date_range2 <- cut(rad_data_raw$RESULT_DATE, breaks = '2 years')
@@ -680,16 +674,21 @@ analyses_by2years
 ```
 
 #####Analysis Types and Half-Lives
-There are two types of analyses: radioactive (R) 97.9 % and elemental (E) 2.1%. One might think it odd that only 50% of the entries include a radioactive half-life ($t_{1/2}$). However, as noted gross beta accounts for 50% of the entries and a half-life is only defined for the single isotope of an particular element, gross beta is not isotope specific. So this is understandable and we can confirm that the half-life entries for beta are NA's. There are 56 distinct elements with half-lives, but the top 10 account for a majority of the remaining dataframe.
-
-Half-life values by themselves are like sample size and result amount and cannot be compared directly. However, the values in this case can be easily converted to a single time unit, e.g., *years*  and then plotted. This wonderfully captures the breadth of half-lives that is involved within this group of isotopes. The shortest-lived isotope, radon-219 has $t_{1/2}$ of 3.9 seconds compared to the longest-lived isotope, lanthanum-138 with $t_{1/2}$ = 1.05x10^11^, 105 billion years.
+There are two types of analyses: radioactive (R) 97.9 % and elemental (E) 2.1%. At first it might seem odd that only 50% of the entries include a radioactive half-life ($t_{1/2}$). However, half-life is only defined for the single isotope of an particular element and gross beta which is not isotope specific accounts for 50% of the entries and a  quick filter confirms that the half-life entries for beta are NA's.
 
 ```{r variable_halflife, echo=FALSE, message=FALSE, warning=FALSE}
 ### ANA_TYPE -> CHR, "E" (Element) = 10585, "R" (Radionuclide)= 493507
 #######################################################################
 table(rad_data_raw$ANA_TYPE)
+print("HALF-LIFE OF GROSS BETA Entries")
 summary(rad_data_raw %>% select(ANALYTE_ID, HALF_LIFE) %>% filter(ANALYTE_ID == "BETA"))
+```
 
+Fify-six elements have half-lives, but the top 10 account for a majority of the remaining dataframe.
+
+Half-life values by themselves are like sample size and result amount and cannot be compared directly. However, the values in this case can be easily converted to a single time unit, e.g., *years*  and then plotted. This wonderfully captures the breadth of half-lives that is involved within this group of isotopes. The shortest-lived isotope, radon-219 has $t_{1/2}$ of 3.9 seconds compared to the longest-lived isotope, lanthanum-138 with $t_{1/2}$ = 1.05x10^11^, 105 billion years.
+
+```{r entries_halflife, echo=FALSE, message=FALSE, warning=FALSE}
 ### HALF_LIFE -> value of an isotopes half-life, 251749 50% NA's  ####
 element_half_life <- subset(rad_data_raw[ , c(11,18,19)], !is.na(HALF_LIFE))
 element_half_life <- within(element_half_life,
@@ -705,7 +704,7 @@ element_life <- ggplot(element_half_life,
        x=NULL, y = "Count (log10)") +
   theme(plot.title = element_text(hjust = 0.5))
 
-n_distinct(element_half_life$ANALYTE_ID)
+#n_distinct(element_half_life$ANALYTE_ID)
 
 element_life
 
@@ -745,7 +744,7 @@ isotope_years
 ###Univariate Analysis and Review
 
 #### Dataset structure:
-The original dataframe had 504,092 entries with 19 variables. The variables represented factors (some levelled), numerical values, characters and dates. Some of the variables were recast for uniformity and to help data manipulation and representation. Most notably the dates were converted to date characters in ISO 8601 format.
+The original dataframe had 504,092 entrieswith 19 variables. The variables represent factors (some levelled), numerical values, characters and dates. Some of the variables were recast for uniformity and to help data manipulation and representation. Most notably the dates were converted to date characters in ISO 8601 format.
 
 #### Main features of interest:   
 * Material ID: milk, air: filter and charcoal, water: surface and precipitation
@@ -755,44 +754,44 @@ The original dataframe had 504,092 entries with 19 variables. The variables repr
     + empty result entries (NANs)
 
 #### Support features in the dataset:
-The main features of interest should be great in investigation of their own interactions. However, the dates should also be very useful in introducing a time component to the study.  
-Result values in combination with Location IDs and dates would help isolate groups of data and identify any radioactive release events or concerns. Analytes tested should also help to subset and classify data to provide better comparisons. Additionally, Sample IDs may help to find duplicate entries or to better understand missing data.
+Dates should be very useful in investigating the time component to the information. Result values in combination with Location IDs and dates would help isolate groups of data and identify any radioactive release events or concerns. Analytes tested should also help to subset and classify data to provide better comparisons. Additionally, Sample IDs may help to find duplicate entries or to better understand missing data.
 
 #### New variables created from existing variables:
-Several new variables were created for the handling of the geographical information, e.g., latitude and longitude. The R packages `ggmap` and `choroplethr` and the API with `geocode` all require specific formatting of input data which in turn required reformatting of variables, e.g., NM to new mexico.  
+Several new variables were created for the handling of the geographical information, e.g., latitude and longitude. The R packages `ggmap` and `choroplethr` and the API with `geocode` all require specific formatting of input data which in turn required reformatting of variables, e.g., NM to new mexico. Three variables were added to clarify and provide better handling of the empty *result amount* (NA). One variable *complete* is a simple character variable with Y(es) and N(o) to identify whether there is a result value or not. Two numeric variables were added with the hopes to better quantify and classify the Y=1 and N=0 values. 
 
-Three variables were added to clarify and provide better handling of the empty *result amount* (NA). One variable *complete* is a simple character variable with Y(es) and N(o) to identify whether there is a result value or not. Two numeric variables were added with the hopes to better quantify and classify the Y and N values.   
-
-The dates were grouped into 3 different time spans to provide a way for a more simplified examination of the dataframe as well as to investigate duplicate Sample IDs. 
+The dates were grouped into 3 different time spans to provide a way for a more simplified examination of the dataframe as well as to investigate duplicate Sample IDs where entries for different analytes are made on different days. 
 
 #### Data Cleansing/Unusual Distributions:
-In general, most cleaning and date munging involved verifying and reformatting location data. Column names were tidied and shortened. A few database issues were found, e.g.: the abbreviation *PC* was not recognized by the Google API and was changed to "Panama Canal"; the city of Doswell, SC does not appear to exist, but several Doswell, VA observations were found in the dataframe so the single Doswell, SC entry was changed to VA. Several entries were listed as EPA Regions 1 to 10. In an effort to geo-locate the data, each region number was changed to the location of the headquarters for that EPA region.[^eparegions]. 
+In general, cleaning and date munging involved verifying and reformatting location data. Column names were tidied and shortened. A few database issues were found, e.g.: the abbreviation *PC* was not recognized by the Google API and was changed to "Panama Canal"; the city of Doswell, SC does not appear to exist, but several Doswell, VA observations were found in the dataframe so the single Doswell, SC entry was changed to VA. Several entries were listed as EPA Regions 1 to 10. In an effort to geo-locate the data, each region number was changed to the location of the headquarters for that EPA region.[^eparegions]. 
 
 Because of the number of missing result entries a duplicate dataframe (rad_data) was created which filtered out the NA rows for RESULT_AMOUNT. 
 
-A couple other features of note:  1) The periodic spike in entries occurs July 31 and December 31. Is this a side effect of the database, precipitated by some administrative speciifcation or were there really that many year-end entries, on New Year's Eve?  2) There is any interesting long tailed positive skew for the distribution of sample replicates. So as there is the possibility for multi-analyte analysis, most samples are primarily sampled only for gross beta analysis.  
-
+A couple other features of note:  1) There is a long tailed positive skew for the distribution of sample replicates. While there is the possibility for multi-analyte analysis most samples are primarily sampled for gross beta analysis. 1) The periodic spike in entries occurs July 1 and December 31. Is this a side effect of the database, precipitated by some administrative speciifcation or were there really that many year-end entries, on New Year's Eve?  
 
 ##Bivariate Investigations
 
 ###Bivariate Plots 
 
 #####Correlations
-A heat map correlation matrix indicates that most of the numerical variables are not well correlated. The new variables Y/N are negatively correlated and the measurement variables (result amount, CSU and MDC) are stongly correlated.  
+A heat map correlation matrix indicates that most of the numerical variables are not well correlated. The new variables Y/N are negatively correlated and the measurement variables (result amount, CSU and MDC) are stongly correlated. 
 
-A general correlation matrix^[^ggpairs] on a 10% sample of the database reveals how the majority of the observations may be classified. Variables with multiple levels, such as cities and states are not easy to include in this type of matrix. To provide correlations for observations by location some grouping is necessary.
-
-[^ggpairs]: http://koaning.io/ggally-explore-all-the-things.html
-
-```{r corr_matrix,echo=FALSE,  message=FALSE, warning=FALSE }
+```{r heatmap,echo=FALSE,  message=FALSE, warning=FALSE }
 numeric_cols <- c("ANA_SIZE", "ANA_PROC_NUM", "LOC_NUM",
                   "RESULT_AMOUNT", "CSU","MDC","HALF_LIFE","lat",
                   "lon", "Y", "N")
 cat_cols <- c("MAT_ID","ANA_PROC_NUM",
               "RESULT_UNIT","ANA_TYPE","complete")
 ggcorr(rad_data_raw[,numeric_cols], label = TRUE, label_color = 'white')
+```
 
-## 10% sampling of data base
+A general correlation matrix^[^ggpairs] on a 10% sample of the database reveals how the majority of the observations may be classified. Air-filter entries as the largest material group are easy to follow within the matrix. Air-filter samples are usually analysed with procedure 1 for radioactive components, reported in pCi/m^3^ and are by-and-large completed entries. At the opposite end of the spectrum, there are so few elemental (E) entries these are also easy to see in the matrix. They are grouped nicely with respect to the other variables. The elemental analyses are for pastuerized milk, predominantly by procedure 9, reported as g/L and are all completed. A further filter reveals that the specific analytes are calcium (Ca) and potassium (K).
+
+Variables with multiple levels, such as cities and states are not easy to include in this type of matrix. To provide correlations for observations by location some grouping would be necessary. 
+
+[^ggpairs]: http://koaning.io/ggally-explore-all-the-things.html
+
+```{r corr_matrix,echo=FALSE,  message=FALSE, warning=FALSE }
+#### Avoid long running matrix using 10% sampling of data base ####
 set.seed(999)
 test_10 <- rad_data_raw[sample(nrow(rad_data_raw), 50000, replace = FALSE),]
 
@@ -807,25 +806,10 @@ rad_data_raw %>% filter(ANA_TYPE == "E") %>% select(MAT_ID, ANALYTE_ID, ANA_PROC
 ```
 
 #####Monitoring Locations and Entries
-When the monitoring stations are grouped within a region there is a not surprising strong correlation (r=0.87) with the number of observations. Essentially, with more monitoring stations there are more entries. However, the correlation is weaker (r=0.79) when examining the number of empty results to the number of regional monitoring stations. Using a choropleth map we can plot the number of observations entered by state and compare information by location. It is easy to pick out individual states with moderate/low number of observations and higher percentages of empty results, e.g., Kentucky with <4,500 entries has > 17% empty, while California with 23,686 entries has <15% NA results. 
+When monitoring stations are grouped within a region there is a not surprising good correlation (r=0.87) to the number of observations. Essentially, with more monitoring stations more entries would be expected. However, the correlation is weaker (r=0.79) when examining the number of empty results to the number of regional monitoring stations.
 
-```{r uschoropleth, echo=FALSE,  message=FALSE, warning=FALSE}
-### Choropleth of Sample Analyses by State
-bystate <- rad_data_raw %>% group_by(region) %>%
-  summarise(value = n())
-
-bystate <- left_join(bystate, (rad_data_raw %>% group_by(region, LOC_NUM) %>%
-               summarise(obs_station = n()) %>% summarise(stations = n())),
-                          by = "region")
-
-bystate <- left_join(bystate, (rad_data_raw %>% filter(is.na(RESULT_AMOUNT)) %>% 
-               group_by(region) %>%
-               summarise(empty = n())),
-                          by = "region")
-
-bystate <- bystate[order(-bystate$stations),]
-head(bystate)
-#### Number of Stations and Observations(Empty)
+```{r empty_linear, echo=FALSE,  message=FALSE, warning=FALSE}
+#### Number of Stations and Observations(Empty) ####
 cor_station_obs <- round(cor(bystate$stations, bystate$value, 
                              method = "pearson"),2)
 cor_station_empty <- round(cor(bystate$stations, bystate$empty, 
@@ -842,8 +826,30 @@ station_NAs <- ggplot(bystate, aes(x = stations, y=empty)) +
   annotate("text", x = 5, y=5000, label =  cor_station_empty)
 
 grid.arrange(station_obs,station_NAs, ncol = 2, nrow = 1)
+```
 
-###Choropleths Location(geographic) and Observations(Empty)
+Using choropleth maps we can visualize the number of observations entered by state and compare information by location. It is easy to pick out individual states with moderate/low number of observations and higher percentages of empty results, e.g., Kentucky with <4,500 entries has 18%% empty, while California with 23,686 entries has 13% NA results.  
+
+```{r uschoropleth, echo=FALSE,  message=FALSE, warning=FALSE}
+#### Choropleth of Sample Analyses by State Setup ####
+bystate <- rad_data_raw %>% group_by(region) %>%
+  summarise(value = n())
+
+bystate <- left_join(bystate, (rad_data_raw %>% group_by(region, LOC_NUM) %>%
+               summarise(obs_station = n()) %>% summarise(stations = n())),
+                          by = "region")
+
+bystate <- left_join(bystate, (rad_data_raw %>% filter(is.na(RESULT_AMOUNT)) %>% 
+               group_by(region) %>%
+               summarise(empty = n())),
+                          by = "region")
+
+bystate$percent_empty <- round(bystate$empty/bystate$value*100, digits = 1)
+
+bystate <- bystate[order(-bystate$stations),]
+
+
+#### Choropleths of Entries by State ####
 choro_entries <-state_choropleth(bystate, 
                  title="RADNet Analyses by State") + 
                  labs(subtitle = '1978-2017',
@@ -851,8 +857,9 @@ choro_entries <-state_choropleth(bystate,
   theme(plot.caption = element_text(size = rel(0.5)),
          plot.title = element_text(hjust=0.75),
          plot.subtitle = element_text(size=rel(.75), hjust = 0.5))
+choro_entries
 
-### Choropleth of Empty Results by State
+#### Choropleth of Empty Results by State ####
 ### New Colour Scheme
 ### https://www.r-bloggers.com/advanced-choroplethr-changing-color-scheme/
 col.pal<-brewer_pal(palette = "GnBu")(7)
@@ -869,13 +876,17 @@ choro_nan <-state_nan$render()  +
          plot.title = element_text(hjust=0.5),
          plot.subtitle = element_text(size=rel(.75), hjust = 0.5)) + 
   labs(subtitle = '1978-2017', caption = 'EPA RadNet Data')
-
-choro_entries
 choro_nan
 ```
 
+However, a simple summary of the percent empty observations shows the median percent empty entries for region is 15.9%, as there are only a few outliers so in general empty entries are not a location issue. 
+
+```{r empty_stats,  echo=FALSE, message=FALSE, warning=FALSE}
+boxplot(bystate$percent_empty) 
+```
+
 <!-- #RCHUNK Just for creation of function shared_legend -->
-```{r shared_legend,include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+```{r shared_legend, echo=FALSE, message=FALSE, warning=FALSE}
 #####################################################################
 #### R chunk for function  with common legend function for multiple graphs: Grid.arrange 
 #### http://www.guru-gis.net/
@@ -913,30 +924,26 @@ grid_arrange_shared_legend <- function(..., ncol = length(list(...)),
 ```
 
 #####Hawaiian Subset
-Regional subsets of the data are useful not only to focus on a specific geographic area, but to simplify initial data manipulations before working with the entire data set. Observations from Hawaii were filtered and using a simple state shows the majority of samples are from Honolulu. Using a simple material ID facet, we can see while Honolulu has the most varied of sample types, air-Filters are the most common material. 
+Regional subsets of the data were useful to simplify initial data manipulations before working with the entire data set. Observations from Hawaii were filtered and using a simple state overaly by count shows the majority of samples are from Honolulu. Using a simple material ID facet, we see Honolulu has the most varied of sample types and air-Filters are the most common material sampled. 
 
 ```{r HI_minireviews, echo=FALSE, message=FALSE, warning=FALSE}
-### REVIEW OF DATA with smaller data subset - Hawaii
-##########################################################
-### Map of Analyses in HI
-#####################################
+#### REVIEW OF DATA with smaller data subset - Hawaii ####
 HI_data <- rad_data_raw %>% filter(STATE_ABBR == "HI")
 
 HI_map_matidA <- HImap + geom_count(data = subset(HI_data,
                                                  !is.na(RESULT_AMOUNT)), 
                                    aes(x= lon, y= lat), 
                                    na.rm = TRUE) +
-  labs(title=  'Count of RADNet Analyses in Hawaii',
+  labs(title=  'RADNet Analyses in Hawaii',
        subtitle = '1978-2017',
-       caption = 'EPA RadNet Data',
        colour = element_blank()) +
   theme(plot.caption = element_text(size = rel(0.5)),
         plot.title = element_text(hjust=0.5),
         plot.subtitle = element_text(size=rel(.75), hjust = 0.5),
+        legend.key.size = unit(2,"mm"),
         legend.position = c(0.05, 0))
 
-### Map of Materials and Observation Counts in HI
-#####################################
+### Map of Materials and Observation Counts in HI ####
 HI_map_matidB <- HImap + geom_count(data = subset(HI_data,
                                                  !is.na(RESULT_AMOUNT)), 
                                    aes(x= lon, y= lat, color = MAT_ID), 
@@ -950,21 +957,25 @@ HI_map_matidB <- HImap + geom_count(data = subset(HI_data,
   theme(plot.caption = element_text(size = rel(0.5)),
         plot.title = element_text(hjust=0.5),
         plot.subtitle = element_text(size=rel(.75), hjust = 0.5),
-        legend.position = c(0,0), legend.box.background = element_rect())
-
+        legend.key.size = unit(2,"mm"),
+        legend.position = c(0.01,0.01), 
+        legend.spacing = unit(0,'mm'))
 
 grid.arrange(HI_map_matidA, HI_map_matidB,  ncol = 2, nrow = 1)
 
 ```
 
-Further examination of the material types in Hawaii show that while air-filter samples are the majority of samples, very few of those entries are empty. The precipition samples have the most empty entries. In 2011 an anomalous spike of empty air-charcoal entries appears, for which there seems to be a corresponding spike of completed air-filter samples. As air-charcoal samples were phased out in the 1980s it seems possible that the charcoal samples were entered in error as air-charcoal and were then re-entered as air-filter samples. Additionally, there are no surface water analyses entered for Hawaii.
+Examination of the material types in Hawaii yields some interesting observations. Air-filter samples are the majority of samples and they are almost all complete. Air-charcoal samples have the most empty entries by percent, but the total number of empty entries is more than 5 times for precipitation samples. There are no surface water analyses entered for Hawaii.
 
 ```{r HI_nans,include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-#### Comparison of empty (NA's) RESULT_AMOUNT HI ####
-#HI_data %>% group_by(MAT_ID, complete) %>% summarise(n = n())
+#### Empty (NA's) RESULT_AMOUNT HI by MATERIAL ID ####
+HI_data %>% group_by(MAT_ID, complete) %>% summarise(n = n()) %>%  
+  spread(complete,n) %>% mutate(percent_empty = round(N/(N+Y)*100, digits=0))
 
+
+#### Empty by Date ####
 HI_matIDna <- ggplot(subset(HI_data, is.na(RESULT_AMOUNT)), 
-                   aes(RESULT_DATE, fill = MAT_ID)) +
+                   aes(RESULT_DATE)) +
   geom_histogram(bins = 25, alpha = 0.6) +
   labs(title = 'Empty Result Entries',
        subtitle = 'Hawaii',   
@@ -977,7 +988,7 @@ HI_matIDna <- ggplot(subset(HI_data, is.na(RESULT_AMOUNT)),
         legend.position = c(0.3,0.8))
 
 HI_matIDnna <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT)),
-                       aes(RESULT_DATE, fill = MAT_ID)) +
+                       aes(RESULT_DATE)) +
   geom_histogram(bins = 40, alpha = 0.6)+
   labs(title = 'Completed Results',
        subtitle = 'Hawaii',
@@ -993,17 +1004,22 @@ HI_matIDnna <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT)),
 
 grid.arrange(HI_matIDna, HI_matIDnna, ncol = 2, nrow = 1)
 
-## To remove initial blank page created from shared_legend 
-## save as .pdf onefile = FALSE
-## https://stackoverflow.com/questions/12481267/
-## in-r-how-to-prevent-blank-page-in-pdf-when-using-gridbase-to-embed-subplot-insi
+HI_matID <- ggplot(HI_data, aes(RESULT_DATE, fill = MAT_ID)) +
+  geom_histogram(bins = 40, alpha = 0.6)+
+  labs(title = 'Materials Analysed in Hawaii',
+       caption = 'EPA RadNet Data 1978-2017',
+       y = 'Number') +
+  theme(plot.title = element_text(hjust=0.5),
+        axis.title.x = element_blank(),
+        plot.subtitle = element_text(size=rel(.75), hjust = 0.5),
+        legend.title = element_blank(),
+        plot.caption = element_text(size = rel(0.5)),
+        legend.position = c(0.1,0.75))
 
-#pdf("HI_mats.pdf",onefile = FALSE)
-#grid_arrange_shared_legend(HI_matID, HI_matIDnans, ncol = 2, nrow = 1, position = "bottom")
-#dev.off()
+HI_matID
 ```
 
-Further examination of the Hawaiian air samples confirms that around April 2011, 378 air analyses were entered. One-half as air-charcoal (190) with 128 empty and the remainder as air-filter analyses (188) with only 21 incomplete. The air-charcoal samples are from Kahuku and Kauai monitoring stations as are a number of the air-filter samples. However, upon a closer look, the air-filter sample spike is actualy earlier than the air-charcoal spike. So while an interesting detail, more information would be needed to establish if there is a relationship between the empty air-charcoal and air-filter samples.
+In 2011 an anomalous spike of empty entries, for which there is a corresponding spike of completed entries. Using a material filled distribution we see the spike to be composed of air-charcoal and air-filter samples. As air-charcoal samples were phased out in the 1980s it seems possible that the charcoal samples were entered in error and re-entered as air-filter samples. 
 
 ```{r HI_airsamples, include=FALSE, echo = FALSE, message=FALSE, warning=FALSE}
 HI_airentries <- subset(HI_data, RESULT_DATE > '2011-03-15' &
@@ -1038,10 +1054,11 @@ HI_airsamp
 filter(rad_data_raw, MAT_ID =="AIR-CHARCOAL"  & is.na(RESULT_AMOUNT)) %>% group_by(region) %>% summarize(n=n())
 
 ```
-A quick survey of the databases shows that only a few locations have empty air-charcoal entries with Alaska and Hawaii having the greatest number. 
+
+Further examination of the Hawaiian air samples confirms that around April 2011, 378 air analyses were entered. One-half as air-charcoal (190) with 128 empty and the remainder as air-filter analyses (188) with only 21 incomplete. However, upon a closer look, the air-filter sample spike is actualy earlier than the air-charcoal spike. So while interesting, more information is needed to establish the actual between the empty air-charcoal and air-filter samples. A quick survey of the databases shows that only a few locations have empty air-charcoal entries with Alaska and Hawaii having the greatest number. 
 
 #####Empty Entries and Completed Samples All Regions
- To examine the preponderance of empty samples a table of proportions was generated and frequency distributions of the complete/incomplete observations plotted by date. Interestingly, empty (incomplete) entries only exist from 1990 to 2011. During this 20 year interval, the ratio of empty/completed entries is fairly steady at ~0.37. 
+To examine the preponderance of empty entries in the entire database, a table of proportions was generated and frequency distributions of the complete/incomplete observations plotted by date. Interestingly, empty (incomplete) entries only exist from 1990 to 2011. During this 20 year interval, the ratio of empty/completed entries is fairly steady at ~0.37. 
 
 ```{r all_nans, echo=FALSE, message=FALSE, warning=FALSE}
 ### Change facet lables    ####
@@ -1070,11 +1087,9 @@ grid.arrange(nans_freq, top = "Proportion of RADNet Database Entries 1978-2017 C
 
 ```
 
-Using the *complete* variable the observations status can be examined in relation to the other support variables. For example, by analyte, of the 61 analytes, only 15 have observations with an empty *RESULT_AMOUNT*. Cesium-237 tops this list with 17,938 empty entries. More interesting though is Thorium-234 has 163 empty entries, but no completed entries. 
-Empty entries by material ID reveals that proportionally, Air-Charcoal is the most incomplete while Air-Filter is the most complete. On an actual count basis Precipitation and Pasteurized Milk have the most blank result values. Just two analytical procedure numbers have empty entries, procedures 9 and 118. 
+Cross-examination of *complete* entries by analyte, shows of the 61 analytes only 15 have observations with an empty *RESULT_AMOUNT*. Cesium-237 tops the list with 17,938 empty entries. More interesting though is Thorium-234 with 163 empty entries, but no completed entries. 
 
-```{r incompletes, echo=FALSE, message=FALSE, warning=FALSE}
-#### by analyte    ####
+```{r incomplete_analytes, echo=FALSE, message=FALSE, warning=FALSE}
 analyte_complete <- table(rad_data_raw$ANALYTE_ID, rad_data_raw$complete)
 analyte_incomplete <- as.data.frame(analyte_complete)
 analyte_incomplete <- spread(analyte_incomplete, Var2, Freq)
@@ -1082,9 +1097,7 @@ names(analyte_incomplete)[1]<- "ANALYTE"
 analyte_incomplete <- analyte_incomplete[order(-analyte_incomplete$N),]
 analyte_tests <-head(analyte_incomplete, n=15)
 
-### grid.table(analyte_tests)
-
-#### Analyte Complete/Incomplete Table
+##### Analyte Complete/Incomplete Table ####
 tt2 <- ttheme_default(core=list(fg_params=list(hjust=1, x=0.75,
                                                y= 0.7, cex = 0.5)),
                       rowhead=list(fg_params=list(hjust=0, x=0.75, 
@@ -1099,22 +1112,24 @@ grid.arrange(tableGrob(analyte_tests,
                                gp = gpar(fontface = 3, fontsize = 6),
                                hjust = 1.5,
                                x = 1))
+```
 
+Empty entries by material ID reveals that proportionally, Air-Charcoal is the most incomplete while Air-Filter is the most complete. On an actual count basis Precipitation and Pasteurized Milk have the most blank result values. Just two analytical procedure numbers have empty entries, procedures 9 and 118. 
+
+```{r incomplete_matID, echo=FALSE, message=FALSE, warning=FALSE}
 #### by Material ID  ####
 spread(rad_data_raw %>% group_by(MAT_ID, complete) %>%  summarise(count = n()), 
        complete, count) %>%  mutate(Incomplete = N/(N+Y))
 #### by Procedure Number ####
 spread(rad_data_raw %>% group_by(ANA_PROC_NUM, complete) %>%  summarise(count = n()),complete,
-       count) %>% View()
+       count) %>% filter(!is.na(N))
 ```
 
 #####Sample IDs - Samples and Tests
-The number of unique sample IDs is 272,004, 54% of the database. If distinct is applied to additionally categories such as location, the number of samples does not change, thus sample IDs do not appear to be used across multiple locations. However, when grouped by both sample ID and result date fewer samples are duplicated, indicating that results for one Sample ID can be entered on different dates. If the date grouping is over a date range (e.g, 6 mos, 1 yrs, 2 yrs) the number of duplicate entries decreases. This limits the life-time of a Sample ID and indicates IDs are not recycled. A grouping by Sample ID and Analyte ID confirms that 98% of the data (494249) is unique within these two variables.  
+The number of distinct sample IDs is 272,004, 54% of the database. If distinct is applied pair-wise with another category, such as location, the number of samples does not change indicating sample IDs do not appear to be used across multiple locations. However, when grouped by both sample ID and result date fewer samples are duplicated, indicating that results for one Sample ID may be entered on different dates. If grouped over a date range (e.g, 6 mos, 1 yrs, 2 yrs) the number of duplicate entries decreases. This essentially limits the life-time of a Sample ID and indicates IDs are not recycled. The distinct Paired Sample ID-Analyte ID confirms that 98% of the data (494249) is unique within these two variables. Consequently, the reason for duplication sample IDs is that there are multi-analytes for the sample.
 
 ```{r samp_ID_groups, echo=FALSE, message=FALSE, warning=FALSE}
-
-## Grouped by SAMP-ID
-#####################
+#### Grouped by SAMP-ID ####
 print((c("Distinct Sample IDs:  ", 
               n_distinct(rad_data_raw$SAMP_ID))))
 ## analyses complete by Sample ID grouped by another variable
@@ -1132,10 +1147,10 @@ print(paste(c("Distinct Sample IDs by Analyte:  ",
               n_distinct(rad_data_raw$SAMP_ID, rad_data_raw$ANALYTE_ID))))
 ```
 
-As noted, a sample can be tested for multiple analytes with different result dates. Each of the analytes would be a separate observation, but should have identical Sample IDs. To collect together all parts of a sample, the dataframe was grouped across 4 categories (material ID, date range (2yr), location, and sample ID).  This grouping was developed to determine a status for the sample: complete - all analytes have results, incomplete - some analytes have empty results, and empty - no results entered for any of the analytes for that sample ID. Using this status categorization there are 274677 samples, 93.5% are complete, 6.4% are incomplete, and 0.1% are empty. With the grouped data we can visualize the status of a sample by the number of tests (entries). Generally completed samples have only 1 test, those that are empty have about 5 tests while incomplete samples have a range of entered tests, mostly from 4 to 10.
+Thus, to collect together all parts of a sample, the dataframe was grouped across 4 categories (material ID, date range (2yr), location, and sample ID). This grouping was developed to determine a status for the sample: complete - all analytes have results, incomplete - some analytes have empty results, and empty - no results entered for any of the analytes. Using this status categorization there are 274677 samples, 93.5% of which are complete, 6.4% are incomplete, and 0.1% are empty. With the grouped data we can visualize the status of a sample by the number of tests (entries). Most samples have only 1 test, those that are empty have about 5 tests while incomplete samples have a range of entries(tests), mostly from 4 to 10.
 
-```{r in_complete, echo=FALSE, message=FALSE, warning=FALSE}
-## Grouped by MAT_ID, **2-year date range**, location, sample id
+```{r sample_status, echo=FALSE, message=FALSE, warning=FALSE}
+#### SAMPLES: Group by MAT_ID, 2-year date range, location, sample id ####
 samples_rank <- rad_data_raw %>%
   group_by(MAT_ID, date_range2, LOC_NUM, lat, lon, SAMP_ID) %>% 
   summarise(Ytot = sum(Y), Ntot = sum(N))  %>% 
@@ -1149,13 +1164,11 @@ samples_rank$status <- ifelse(samples_rank$Ytot == 0, "E",
 table(samples_rank$status)
 
 #### Status - density violin plot with percent Complete, Empty, Incomplete ####
-
 tests_complete_status <- ggplot(samples_rank, 
                                   aes(x=status, y = analyses)) +
   geom_violin(aes(fill = status)) +
   scale_fill_manual(values = c( "green", "red", "blue"),
                       labels = c("(C)omplete", "(E)mpty", "(I)ncomplete")) +
-  #facet_wrap(~MAT_ID) +
   labs(title = "Status of Samples",
        caption = "EPA RadNet Data 1978-2017",
        y = "Number of Tests") +
@@ -1166,25 +1179,26 @@ tests_complete_status
 ```
 
 #####Result Values by Sample Type
-While it was noted that result values themselves cannot be compared directly without ensuring the same unit of measure, we can group like samples and plot values filtered by a unit. Filtering for the chief analyte *Beta* and pCi/m^3^ within the Hawaiian dataset a plot by date yields a two sharp increases above background. The dates of these events are just after the nuclear accidents at the Chernobyl and Fukushima nuclear power plants in May 1986 and March 2011. 
+While it was noted that result values themselves cannot be compared directly without ensuring the same unit of measure, we can group like samples and plot values filtered by a unit. Filtering for the chief analyte *Beta* and pCi/m^3^ within the Hawaiian dataset a plot by date yields a two peaks above background. The dates of these events are just after the nuclear accidents at the Chernobyl and Fukushima nuclear power plants in May 1986 and March 2011. 
 
-The entire data set was then evaluated in the same fashion and the spikes for Fukushima and Chernobyl are a bit changed. Beta result values in other locations reversed the relative heights of the peaks. In addition, two new spikes emerge, one in March 1981 and another in July 2008. 
+```{r beta_date, echo=FALSE, message=FALSE, warning=FALSE}
+#### HI Beta Results (pCi/m3) by Date, coloured for location ####
 
-```{r beta_date, echo=FALSE,message=FALSE, warning=FALSE}
-### HI Beta Results (pCi/m3) by Date, coloured for location
-#######################################################################
+### Create class Date vector for labels 
+event_dates <- as.Date(c("1983-03-04",        #Tsuraga, point at 1981-03-04
+                         "1986-05-18",        #Chernobyl
+                         "2008-07-18",        #TN
+                         "2011-03-25"), "%F") #Fukushima
+
 HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
                            RESULT_UNIT == "PCI/M3" & 
                            ANALYTE_ID =="BETA"),
-                  aes(x=RESULT_DATE, y= RESULT_AMOUNT #, color = CITY_NAME
-                      )) + 
+                  aes(x=RESULT_DATE, y= RESULT_AMOUNT)) + 
   geom_point() +
   annotate("text", label = "0.894 Mar '11 \n (Fukushima)",
-           x= as.Date("2011-03-25"),
-           y=0.8) +
+           x= event_dates[4], y=0.8) +
   annotate("text", label = "0.3758 May '86 \n (Chernobyl)",
-           x= as.Date("1986-05-18"),
-           y=0.5) +
+           x= event_dates[2], y=0.5) +
   labs(title = 'Gross Beta in HI Samples 1978-2017', 
        caption = 'EPA RadNet Data') +
   scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
@@ -1195,142 +1209,158 @@ HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
         legend.title = element_blank())
 HI_beta
 
-## Test Filter date to find High Points in above chart
+### Test Filter date to find High Points in above chart ####
 #test <- HI_data %>% filter(RESULT_AMOUNT > 0.25 & 
 #                                  ANALYTE_ID == "BETA" &
 #                                  RESULT_UNIT == "PCI/M3" &
 #                                  RESULT_DATE < "2011-01-01") %>% 
 #                         select(RESULT_AMOUNT, RESULT_DATE)
+```
 
-### Plot of Beta Results (pCi/m3) all locations
-#####################################
+The entire data set was then evaluated in the same fashion and the spikes for Fukushima and Chernobyl are a bit changed. Beta result values in other locations reversed the relative heights of the peaks. In addition, two new spikes emerge, one in March 1981 and another in July 2008. 
 
-all_beta <- ggplot(subset(rad_data,
-              RESULT_UNIT == "PCI/M3" &
-              ANALYTE_ID =="BETA"),
-       aes(x=RESULT_DATE, y= RESULT_AMOUNT #, color = STATE_ABBR
-           )) + 
-  geom_point() +
-  annotate("text", label = "1.158 Mar '11 AK \n (Fukushima Mar '11)",
-              x= as.Date("2011-03-25"),
-              y= 1.9) +
+```{r second_date, echo=FALSE, message=FALSE, warning=FALSE}
+#### Reduce dataframe size for KNITR ####
+rad_trim <- rad_data_raw %>% filter(!is.na(RESULT_UNIT)) %>%
+  select(MAT_ID, SAMP_ID, LOC_NUM, CITY_NAME, STATE_ABBR,
+         ANALYTE_ID, RESULT_AMOUNT, RESULT_DATE, RESULT_UNIT,
+         CSU, MDC, ANA_TYPE, region, citystate, complete, Y, N, date_range)
+
+#### Plot of Beta Results (pCi/m3) all locations  ####
+all_beta <- ggplot(subset(rad_trim,
+                          RESULT_UNIT == "PCI/M3" &
+                            ANALYTE_ID =="BETA"),
+                   aes(x=RESULT_DATE, y= RESULT_AMOUNT)) + 
+  geom_point()+
+  annotate("text", label = "1.158 Mar '11 AK \n(Fukushima Mar '11)",
+           x= event_dates[4], y= 1.9) +
   annotate("text", label = "0.703 \nJuly '08 TN",
-              x= as.Date("2008-07-18"),
-              y= 0.85) +
+           x= event_dates[3], y= 0.85) +
   annotate("text", label = "2.543 May '86 AL\n (Chernobyl Apr '86)",
-              x= as.Date("1986-05-23"),
-              y= 2.75) +
-    annotate("text", label = "1.104 \nMar '81 NV \n (Tsuraga? \n Mar '81)",
-              x= as.Date("1983-03-04"), #moved for display, point at 1981-03-04
-              y= 1.25) +
+           x= event_dates[2], y= 2.75) +
+  annotate("text", label = "1.104 \nMar '81 NV \n (Tsuraga? \n Mar '81)",
+           x= event_dates[1], y= 1.25) +
   labs(title = 'Gross Beta in RADNet Samples 1978-2017', 
        caption = 'EPA RadNet Data') +
   scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
-  xlab('Date') +
-  ylab('pCi/m3') +
+  xlab('Date') +  ylab('pCi/m3') +
   theme(plot.caption = element_text(size = rel(0.5)),
-        plot.title = element_text(hjust=0.5),
-        legend.title = element_blank(),
-        legend.key.size = unit(2,"mm"),
-        legend.text = element_text(size = rel(0.7))
-        ) +
-  guides(col= guide_legend(ncol = 2))
+        plot.title = element_text(hjust=0.5))
 all_beta
 
-## Filter date to find High Points in above chart
+### Filter date to find High Points in above chart ####
 #test <- rad_data_raw %>% filter(RESULT_AMOUNT > 1.5 & 
 #                                  ANALYTE_ID == "BETA" &
 #                                  RESULT_UNIT == "PCI/M3" &
 #                                  RESULT_DATE < "1987-01-01") %>% 
 #                         select(RESULT_AMOUNT, RESULT_DATE, STATE_ABBR, CITY_NAME)
-
 ```
 
-Other analytes can be examined in the same way. Radium-226, the 10th most common analyte, is most often reported in picocuries per liter (pCi/L). Filtering for this subset and plotting yields a much less populated graph with consistent low values until 2012 when noisy and negative values are reported. Because of the noise in this graph further study and examination of detection limits would be required to determine the signifcance of the peak value >25 pCi/L.
+Other analytes can be similarly examined. Radium-226, the 10th most common analyte, is most often reported in picocuries per liter (pCi/L). Filtering for this subset and plotting yields a much less populated graph with consistently low values until 2012 when the plot seem much noiser and negative values are reported.  
 
 ```{r radium_date, echo=FALSE, message=FALSE, warning=FALSE}
-rad_data_raw %>% filter(ANALYTE_ID == "RA226") %>% group_by(RESULT_UNIT) %>% summarise(n=n())
-radium <- subset(rad_data, RESULT_UNIT == "PCI/L" & ANALYTE_ID =="RA226")
+#### Radium Results by year with Min Detection ####
+rad_data_raw %>% filter(ANALYTE_ID == "RA226") %>% 
+  group_by(RESULT_UNIT) %>% summarise(n=n())  ##analyte unit for RA226
 
-all_radium <- ggplot(radium, aes(x=RESULT_DATE, y= RESULT_AMOUNT)) + 
+radium <- subset(rad_trim, RESULT_UNIT == "PCI/L" & ANALYTE_ID =="RA226") %>% 
+              select(ANALYTE_ID, RESULT_DATE, RESULT_AMOUNT, MDC, CSU)
+
+all_radium <- ggplot(radium, aes(x=RESULT_DATE, y= RESULT_AMOUNT,
+                                 colour = "RESULT_AMOUNT")) + 
   geom_point() +
-  geom_line(aes(x=RESULT_DATE, y= MDC), lty = 3, colour = "blue")+
   labs(title = 'Radium-226 in RADNet Samples 1978-2017', 
        caption = 'EPA RadNet Data') +
   scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
   xlab('Date') + ylab('pCi/L') +
   theme(plot.caption = element_text(size = rel(0.5)),
-        plot.title = element_text(hjust=0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.3,0.5))
+        plot.title = element_text(hjust=0.5))
+
 all_radium
 ```
 
+However, a simple overlay of the detection limit and uncertainty changes the perspective. On a log scale we see both detection limits and uncertainties are above the average reported value, thus reducing the perceived significance of the peak point > 25 pCi/L.
+
+```{r radium_csu_mdc, echo=FALSE, message=FALSE, warning=FALSE}
+all_radium +
+  geom_line(aes(x=RESULT_DATE, y= MDC, colour = "MDC"), lty = 3 )+
+  geom_line(aes(x=RESULT_DATE, y= CSU, colour = "CSU"), lty = 5 )+
+  scale_y_continuous(trans = 'log2') 
+
+```
+
+
 ###Bivariate Analysis and Review
 ####Relationships Observed in bivariate investigations
-The material ID appears to be the most convenient way to quickly subset and classify the observations. As seen in the univariate analysis Air-Filter dominates and the correlation matrix confirmed that Air-Filter samples coincide with the top categorical results: result unit *pCi/m^3^*, analytical procedure *1*, type *R*adioactive. Air-Filters aslo comprise the most complete entries, *Y*.
+The material ID appears to be the most convenient way to quickly subset and classify the observations. As seen in the univariate analysis Air-Filter dominates and a correlation matrix confirmed that Air-Filter samples coincide with the top categorical results: result unit *pCi/m^3^*, analytical procedure *1*, type *R*adioactive. Air-Filters aslo comprise the most complete entries, *Y*.
 
-The location data, while informative and visually interesting, does not easily correlate to the other variables in the data. Yes, more observations are noted in areas with more monitoring stations. Not surprisingly, there are more monotoring stations located in areas of higher population and locations near known radioactive material handling, e.g. Oak Ridge, TN; Carlsbad, NM; Richland, WA. Surprisingly, the incomplete entries do not have the same correlation to location, these entries do not seem to be as simple as a percentage of the total.
+Location data, while informative and visually interesting, does not easily correlate to the other variables in the data. Yes, more observations are noted in areas with more monitoring stations. Not surprisingly, there are more monotoring stations located in areas of higher population and locations near known radioactive material handling, e.g. Oak Ridge, TN; Carlsbad, NM; Richland, WA. The incomplete entries with a few exceptions are generally as in the database about 16% of the entries by location.
 
-In fact empty entries have a strong correlation to Air-Charcoal entries which are predominantly incomplete. Milk and precipitation samples have more incomplete entries percentage-wise than the remaining material types. 
+The mpty entries do have a strong correlation to material ID. Air-Charcoal entries are predominantly incomplete. Milk and precipitation samples have more incomplete entries percentage-wise than the remaining material types. The largest group of sample material, Air-Filter, has the least incomplete entries.
 
 ####Interesting relationships between minor features
-The *E*lement category small subset of the data and are not generally split in any other categories. Element observations are most simply *completed drinking water samples* reported in *g/L*. The element entries are split by analytical procedure with most being analysed by procedure 9 with some analysed by procedure 57. On this limited set it was easy to tie procedures 9 and 57 to the analytes potassium (K) and calcium (Ca), respectively. 
+The *E*lement category is a small subset of the data and is not generally split in any other categories. Most succinctly, element analysis consists of *completed drinking water samples* reported in *g/L*. The element entries are split by analytical procedure with most being analysed by procedure 9 with some analysed by procedure 57. On this limited set it was easy to tie the procedures to the analytes potassium (K) and calcium (Ca), respectively. 
 
-A somewhat surprising result is the weak correlation of the analytical size to the result amount values. The result value should be independent of the sample size. However, it is important to remember that the results and size are not standardized to for actual comparison, this correlation it is purely a relationship between the values not actual magnitude. While sample sizes are often specified by procedure, it should not be expected that the result values would be related to the size of the sample. In this case, I would theorize that the the relationship is forced due to limited analyses in which the result values and sample sizes possess a low variance. 
+One somewhat surprising result is the weak correlation (0.42) of analytical size to the result amount value. Sample sizes are often specified by procedure and it should not be expected that the result values would be related to the size of the sample. However, it is important to remember that the results and size are not standardized to for actual comparison, so this correlation is purely a relationship between the values not any actual magnitude. In this case, I would theorize that the relationship is forced due to limited analyses in which the result values and sample sizes possess low variance. 
 
 ####The strongest relationship
-The strongest correlations existing in the original dataframe is between the result amounts, minimal detectable concentration and combined standard uncertainty values. This is to be anticipated as both MDC and CSU are determined/calculated through the analyses of samples and results. A strong negative (-1) correlation between the Y/N status variables confirms that these variables were set up correctly as if the sample is complete (1) it cannot also be incomplete (0) and vice versa.
+The strongest correlations existing in the original dataframe is between the result amounts, minimal detectable concentration and combined standard uncertainty values. This is to be anticipated as both MDC and CSU are determined/calculated through the analyses of samples and results. Again caution should be used here as the values are not normalized.
+
+The perfect negative (-1) correlation between the Y/N status variables merely confirms that these variables were set up correctly. If the entry is complete (1) it cannot also be incomplete (0) and vice versa.
 
 ##Multivariate Investigations
 
 ###Multivariate Plots Section
 
-It is easy to facet and fill on earlier plots by some of the variables to give more relational information between the variables. When the simple histogram is facted by material ID, air-filter entries dominate and as anticipated an analyte ID fill yields gross beta as the predominant analyte. As plotted by year, we notice that pasteurized milk and precipitation were analysed more often in the 1980s-1990s, but appear to have been discontinued/deprioritized whereas the number of air-filter samples has picked up in the last 20 years. 
+####Simple Facets and Fills
+With simple facet of fills of earlier plots more relational information between the variables can be elucidated. When the entry count histogram is facted by material ID as expected air-filter entries dominate and the analyte ID fill shows gross beta as the predominant analyte. Though it is difficult to pick out the exact analytes, we can tell that gross beta is a much smaller percentage of the other materials. Surface water and air-charcoal have the least entries.  
 
-With one simple change the distribution of samples over the various monitoring stations is plotted. When using the numerical ID the distribution looks fairly uneven. However, the distribution is more even if region is plotted, so the right skewed assignment of location IDs yields a skewed visual of geographic distribution.
+```{r analyte_facet, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(rad_trim, aes(LOC_NUM, fill = ANALYTE_ID)) + 
+  geom_histogram(bins=100) +
+  facet_wrap(~rad_trim$MAT_ID) +
+  theme(legend.key.size = unit(2,"mm")) +
+  guides(fill=guide_legend(ncol=2))
+summary(rad_trim$LOC_NUM) #skewed LOC_NUM ID assignments 
+```
 
-```{r analytes_facet, echo=FALSE, message=FALSE, warning=FALSE}
+With the distribution of samples over the various monitoring stations positively skewed, just like the skew of the monitoring station location ID.  However, if sample counts are displayed over region they look more evenly distributed because the regions are not organized in the same fashion. 
 
-ggplot(rad_data, aes(RESULT_DATE, fill = ANALYTE_ID)) + 
-  geom_histogram() +
-  facet_wrap(~rad_data$MAT_ID) 
-
-ggplot(rad_data, aes(LOC_NUM, fill = ANALYTE_ID)) + 
+```{r}
+ggplot(rad_trim, aes(region, fill = ANALYTE_ID)) + 
   geom_bar(stat="count") +
-  facet_wrap(~rad_data$MAT_ID)
-summary(rad_data$LOC_NUM) #skewed LOC_NUM ID assignments 
+  facet_wrap(~rad_trim$MAT_ID) +
+  theme(legend.key.size = unit(2,"mm")) +
+  guides(fill=guide_legend(ncol=2))
 
-ggplot(rad_data, aes(region, fill = ANALYTE_ID)) + 
-  geom_bar(stat="count") +
-  facet_wrap(~rad_data$MAT_ID) 
 
 ```
 
-If we focus only on the second tier analytes, the histogram also shows that these less common analytes are also sampled with fairly regular distribution across the monitoring sites. 
+When sample counts are plotted by year, we see that pasteurized milk and precipitation were analysed more often in the 1980s-1990s, but appear to have been discontinued/deprioritized whereas the number of air-filter samples has picked up in the last 20 years. Surface water analysis seems to have been terminated in 2000. 
+
+```{r byyear_facet, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(rad_trim, aes(RESULT_DATE, fill = ANALYTE_ID)) + 
+  facet_wrap(~rad_trim$MAT_ID) + 
+  geom_histogram(binwidth = 365) + #~yearly grouping
+  theme(legend.key.size = unit(2,"mm")) +
+  guides(fill=guide_legend(ncol=2))
+```
+
+Focusing only on the next five "second tier" analytes, there appears to be a fairly regular distribution of these analyted entris across the various monitoring sites. 
 
 ```{r otheranalytes_geo, echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(subset(rad_data, ANALYTE_ID %in%
+ggplot(subset(rad_trim, ANALYTE_ID %in%
                          c("CS137","H3","K40","BA140","I131")), 
               aes(region, fill = ANALYTE_ID)) + 
   geom_bar() +
   scale_y_sqrt() +
-  labs(title = "",  
-       x = "LOCATION NUMBER", y = "COUNT")
+  labs(title = "", x = "LOCATION NUMBER", y = "COUNT")
 ```
 
 ####Result Amounts and Locations - Beta Analyses 
-Using the beta analyes alone we can facet by location to get a bigger picture view of the release events noted earlie. Within the Hawaiian data set the locations are limited to Hawaiian cities and it is easy to see that the Chernobyl event was picked up at the Honolulu station(s), which appears to be the only station monotoring at that time, but for Fukushima Kahuku and Kauai both saw spikes in gross beta.
+Using only beta analyes we facet by location to get a bigger picture view of the release events noted earlier. The Hawaiian data set shows that the Chernobyl event was picked up at the Honolulu station(s), which appears to be the only station monotoring at that time, but the Fukushima release was picked up by both Kahuku and Kauai spikes in gross beta.
 
-Presenting the entire dataset in the same manner we can elucidate that the July 2008 appears localized to Tennessee, while the March 1981 incident was picked up at several monitoring stations.
-
-Research did not yield any information on any nuclear incidents during 2008.  The 1981 spike was entered March 3 by a Nevada station however, the only nuclear accident found during this time was at the Tusraga Power Plant[^tsuruga]. Reports have this incident as being on March 8th[^tsuruga8] or 9th.[^tsuruga9], however, the reports were covered up for some 40 days and earlier issues at the power plant went unreported, perhaps these are related. 
-
-[^tsuruga]: https://en.wikipedia.org/wiki/Tsuruga_Nuclear_Power_Plant
-[^tsuruga8]: http://timshorrock.com/wp-content/uploads/Chronology-of-1981-Tsuruga-Accident-from-Japanese-Press.pdf
-[^tsuruga9]: https://www.history.com/this-day-in-history/japanese-power-plant-leaks-radioactive-waste
-
-```{r beta_regions, echo=FALSE}
+```{r beta_regions, echo=FALSE, message=FALSE, warning=FALSE}
 #### HI Beta Results (pCi/m3) by Date, Coloured for location #######
 HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
                            RESULT_UNIT == "PCI/M3" & 
@@ -1338,10 +1368,10 @@ HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
                   aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = CITY_NAME)) + 
   geom_point(alpha=0.5) +
   annotate("text", label = "0.894 Mar '11 \n (Fukushima)",
-           x= as.Date("2011-03-25"),
+           x= event_dates[4],
            y=0.8) +
   annotate("text", label = "0.3758 May '86 \n (Chernobyl)",
-           x= as.Date("1986-05-18"),
+           x= event_dates[2],
            y=0.5) +
   labs(title = 'Gross Beta in HI Samples 1978-2017', 
        caption = 'EPA RadNet Data') +
@@ -1352,45 +1382,50 @@ HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
         plot.title = element_text(hjust=0.5),
         legend.title = element_blank())
 HI_beta
+```
 
+Looking at the entire dataset in the same manner we can conclude that the July 2008 appears localized to Tennessee, while the March 1981 incident was picked up at several monitoring stations.
+
+No information could be found on nuclear incidents during 2008. The only nuclear accident found during in Feb/March 1981 was at the Tusraga Power Plant[^tsuruga]. The RadNet data was entered March 3 by a Nevada station however, reports have this incident later, on March 8th[^tsuruga8] or 9th.[^tsuruga9]. However, a reports were covered up for some 40 days and earlier issues at the power plant went unreported, it is still possible these spikes are related to the Tsuraga event.
+
+[^tsuruga]: https://en.wikipedia.org/wiki/Tsuruga_Nuclear_Power_Plant
+[^tsuruga8]: http://timshorrock.com/wp-content/uploads/Chronology-of-1981-Tsuruga-Accident-from-Japanese-Press.pdf
+[^tsuruga9]: https://www.history.com/this-day-in-history/japanese-power-plant-leaks-radioactive-waste
+
+```{r allbeta_regions, echo=FALSE, message=FALSE, warning=FALSE }
 ####Plot of Beta Results Everywhere (pCi/m3), coloured by state####
-all_beta <- ggplot(subset(rad_data,
-              RESULT_UNIT == "PCI/M3" &
-              ANALYTE_ID =="BETA"),
-       aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = STATE_ABBR)) + 
+rad_trimmed <- filter(rad_trim, !is.na(RESULT_AMOUNT)) #Remove empty entries
+all_beta <- ggplot(subset(rad_trim,
+                          RESULT_UNIT == "PCI/M3" &
+                          ANALYTE_ID =="BETA"),
+                   aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = STATE_ABBR)) + 
   geom_point(alpha = 0.6) +
-  annotate("text", label = "1.158 Mar '11 AK \n (Fukushima Mar '11)",
-              x= as.Date("2011-03-25"),
-              y= 1.9) +
+  annotate("text", label = "1.158 Mar '11 AK\n (Fukushima Mar '11)",
+           x= event_dates[4], y= 1.9) +
   annotate("text", label = "0.703 \nJuly '08 TN",
-              x= as.Date("2008-07-18"),
-              y= 0.9) +
+           x= event_dates[3], y= 0.9) +
   annotate("text", label = "2.543 May '86 AL\n (Chernobyl Apr '86)",
-              x= as.Date("1986-05-23"),
-              y= 2.75) +
-    annotate("text", label = "Mar '81\n1.104 - NV \n (Tsuraga?)",
-              x= as.Date("1983-03-01"), #moved for display, point at 1981-03-04
-              y= 1.5) +
+           x= event_dates[2], y= 2.75) +
+  annotate("text", label = "Mar '81\n1.104 - NV \n (Tsuraga?)",
+           x= event_dates[1], y= 1.5) +
   labs(title = 'Gross Beta in RADNet Samples 1978-2017', 
        caption = 'EPA RadNet Data') +
   scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
-  xlab('Date') +
-  ylab('pCi/m3') +
+  xlab('Date') + ylab('pCi/m3') +
   theme(plot.caption = element_text(size = rel(0.5)),
         plot.title = element_text(hjust=0.5),
         legend.title = element_blank(),
         legend.key.size = unit(2,"mm"),
-        legend.text = element_text(size = rel(0.7))
-        ) +
+        legend.text = element_text(size = rel(0.7))) +
   guides(col= guide_legend(ncol = 2))
 all_beta
 ```
 
-To focus on the Fukushima incident, data was filtered and grouped for the month after the incident (March to April 11, 2011). The summarized data shows that max beta measurements across the US are definitely higher on the west coast during this month versus measurements made in the eastern continental US. The same data in the previous year was also summarized and those values are less than a tenth of the 2011 values. Additionally, the pattern across the US is different with *maximum* values being higher across the northern border instead of the coast.
+Data was filtered and grouped for the month after the Fukushima incident (March to April 11, 2011). The summarized data shows that max beta measurements across the US are definitely higher on the west coast during this month versus measurements made in the eastern continental US. The same data in the previous year was summarized to provide a baseline comparison. The 2010 values are less than a tenth of the 2011 values. Additionally, the pattern across the US is different with *maximum* values being higher across the northern border instead of the coast.
 
-```{r fukushima, echo=FALSE, message=FALSE, warning=FALSE}
+```{r fukushima_choro, echo=FALSE, message=FALSE, warning=FALSE}
 #### FUKUSHIMA RESULTS IN-DEPTH March 11, 2011####
-fukushima <- rad_data %>% 
+fukushima <- rad_trimmed %>% 
   filter(RESULT_DATE >= "2011-03-11" & RESULT_DATE <= "2011-04-11" &  
          ANALYTE_ID == "BETA"  &
          RESULT_UNIT == "PCI/M3") %>% 
@@ -1415,7 +1450,7 @@ choro_F1 <- choro_fukushima1$render()  +
 
 
 #### Baseline March-April 2010####
-baseline <- rad_data %>% 
+baseline <- rad_trimmed %>% 
   filter(RESULT_DATE >= "2010-03-11" & RESULT_DATE <= "2010-04-11" &  
          ANALYTE_ID == "BETA"  &
          RESULT_UNIT == "PCI/M3") %>% 
@@ -1442,9 +1477,9 @@ grid.arrange(choro_F1, choro_grund, nrow = 2,
 
 ```
 
-Localized results are seen by plotting the maximum Beta results by monitoring station. There are not many measurements for other radionuclides, but plot of the other analytes (pCi/m^3^) shows areas up to 37 pCi/m^3^. 
+More localized results can be seen by plotting the maximum beta results by monitoring station. Higher values are notable in Las Vegas, Boise, southern California, Arizona, and oddly Montgomery, Alabama. 
 
-```{r fukushima2, echo=FALSE, message=FALSE, warning=FALSE}
+```{r fukushima_station, echo=FALSE, message=FALSE, warning=FALSE}
 #### Fukushima Beta max by monitoring station###################
 fukushima_points <- rad_data %>% 
   filter(RESULT_DATE >= "2011-03-11" & RESULT_DATE <= "2011-04-11" &  
@@ -1455,8 +1490,9 @@ fukushima_points <- rad_data %>%
             value = max(RESULT_AMOUNT), lat = mean(lat), lon = mean(lon))
 
 #### Google Map Fukushima Beta max by monitoring station###################
-monitors_fukushima <- USAMap + scale_y_continuous(limit = c(8.5,49.5)) +
-  scale_x_continuous(limit = c(-130,-62)) +
+monitors_fukushima <- USAMap +
+  scale_y_continuous(limit = c(8.5,49.5)) +
+  scale_x_continuous(limit = c(-130,-62))+
   geom_point(data = fukushima_points,
              aes(x= lon, y= lat, size = value),
              col = 'red4') +
@@ -1474,6 +1510,12 @@ monitors_fukushima <- USAMap + scale_y_continuous(limit = c(8.5,49.5)) +
         )
 monitors_fukushima
 
+
+```
+
+Not other radionuclides were analysed, but plot of the other analytes with a consistent (pCi/m^3^) during this event shows some areas with peaks up to 37 pCi/m^3^. 
+
+```{r fukushima_other, echo=FALSE, message=FALSE, warning=FALSE}
 #### Fukushima Other Analytes max by monitoring station###################
 fukushima_other <- rad_data %>% 
   filter(RESULT_DATE >= "2011-03-11" & RESULT_DATE <= "2011-04-11" &  
@@ -1513,7 +1555,8 @@ grid.arrange(monitors_fukushima, monitors_fukushima_other, ncol = 2, nrow = 1,
 
 ```
 
-The max beta activity measurement in Alaska after Fukushima were almost twice the US-contiguous response, 1.15 pCi/m^3^  vs.  0.6 pCi/m^3^ max. In Alaska other radionuclides are detected at even higher values, 144 pCi/m^3^ for Bismuth-212, 126 pCi/m^3^ for Lead-212 and 59 pCi/m^3^ for Thallium-208.
+Measurements in Alaska after Fukushima were almost twice the US-contiguous response, 1.15 pCi/m^3^  vs. 0.6 pCi/m^3^ gross beta max. Other radionuclides were detected at even higher values in AK, 144 pCi/m^3^ for Bismuth-212, 126 pCi/m^3^ for Lead-212 and 59 pCi/m^3^ for Thallium-208.
+
 ```{r fukushima_AK, echo=FALSE, message=FALSE, warning=FALSE}
 AK_center = c(-149.4937, 64.20084)
 AKMap <- ggmap(get_googlemap(center=AK_center,
@@ -1530,7 +1573,7 @@ AKMap_analytes <- AKMap +
              #alpha = 0.8,
              na.rm = TRUE, 
              position = position_jitter(width = 0.8, height = 0.75))+
-  labs(title=  'Alaska Radioactive Analyses after Fukushima',
+  labs(title= 'Alaska Radioactive Analyses after Fukushima',
        subtitle = 'March 11 - April 11, 2011',
        caption = 'EPA RadNet Data',
        size = "pCi/m3",
@@ -1549,9 +1592,9 @@ AKMap_analytes
 ```
 
 ####Sample Status/Incomplete Empties
-Using a simple material ID facet shows that the individual empty observations which we know comprise 16% of the raw database and occured between 1990 and 2010 are mostly precipitation/milk samples with very few air-filter samples. However, when we group by sample ID to the 272004 distinct samples, only 285 samples (0.1%) are entirely empty while only 6% are incomplete. And a deep dive view of the empty samples reveals that they are predominantly drinking water samples between 1998-2008.
+Using a simple material ID facet shows that the empty observations are mostly precipitation/milk samples with very few air-filter samples. 
 
-```{r complete_status, echo=FALSE, message=FALSE, warning=FALSE}
+```{r entry_status, echo=FALSE, message=FALSE, warning=FALSE}
 #### NA Result Amounts in all observations ####
 nans_freq <- ggplot(nans_date_type, aes(x= Date_Range, y = Frequency, fill=Sample_Type)) +
   geom_bar(stat="identity") +
@@ -1562,6 +1605,11 @@ nans_freq <- ggplot(nans_date_type, aes(x= Date_Range, y = Frequency, fill=Sampl
         legend.title = element_blank())
 nans_freq
 
+```
+
+However, when we group by sample ID only 285 samples (0.1%) of the 272004 distinct samples are truly empty and 6% are incomplete. When faceted by status, the empty samples are difficult to picture. 
+
+```{r sample_complete, echo=FALSE, message=FALSE, warning=FALSE }
 #### Sample Status by date, MAT_ID Fill barplot ####
 table(samples_rank$status)
 sample_status <-ggplot(samples_rank,
@@ -1577,9 +1625,13 @@ sample_status <-ggplot(samples_rank,
         legend.title = element_blank(),
         legend.key.size = unit(3, "mm"),
         legend.text =  element_text(size=rel(0.7)),
-        legend.position = c(0.15,0.80))
+        legend.position = c(0.80,0.80))
 sample_status
+```
 
+A deep dive view of the empty samples reveals that they are predominantly drinking water samples entered between 1998-2008. Thus, the empty entries seen for the other materials must be part of larger sample that is now ranked as incomplete. 
+
+```{r samples_empty, echo=FALSE, message=FALSE, warning=FALSE }
 #### Empty Samples by date, MAT_ID Fill barplot ####
 sample_empty <-ggplot(subset(samples_rank, status =="E"),
                        aes(x=date_range2,fill= MAT_ID)) +
@@ -1595,9 +1647,12 @@ sample_empty <-ggplot(subset(samples_rank, status =="E"),
         legend.text =  element_text(size=rel(0.7)),
         legend.position = c(0.15,0.80))
 sample_empty
+```
 
+To show the status of samples the proportion of completeness (incompleteness) is faceted by material. The pComplete is complimentary to the pIncomplete and consequently the boxplots are a goup of inversed mirror images. However, we can easily see that air-filter, drinking water and surface water samples are largely complete with some sample outliers. The dispersion is greater for the other material categories. Both air-charcoal and pastuerized milk completed samples are left skewed for completeness with the median almost at the third-quartile. The distribution for precipitation is the most normal with the median centered between the 2nd and 3rd quartiles. 
+
+```{r sample_stat_bymat,echo=FALSE, message=FALSE, warning=FALSE  }
 #### Percent Sample Complete by Material ####
-## gather percent to colour by pI/pC - complimentary values, doubles #Samples
 samples_rank <- gather(samples_rank, "percent", n, c("pI", "pC"))
 
 percent_complete_mat <- ggplot(samples_rank, 
@@ -1616,12 +1671,13 @@ percent_complete_mat <- ggplot(samples_rank,
         plot.caption = element_text(size = rel(0.5)) )
 percent_complete_mat 
 
+summary(subset(samples_rank, MAT_ID = 'PRECIPITATION' & percent == "pC"))
 ```
 
-A quick map of the contiguous US shows even though there are relatively few incomplete and empty samples they are spread across the monitoring stations. 
+A quick look of the geographical informatrion for drinking water samples shows that the empty and inclomplete samples are spread across the various monitoring stations. No one region appears to have an issue. 
 
 ```{r emptyH2O_locs, echo=FALSE, message=FALSE, warning=FALSE}
-##reload USA Map centered with Alaska
+##reload USA Map re-centered to include Alaska
 usa_center = c(-115,39)
 USAMap = ggmap(get_googlemap(center=usa_center, scale=2, zoom=3, 
                              extent ="device"))
@@ -1651,25 +1707,15 @@ loc_empty_h20
 
 ###Multivariate Analysis and Review
 
-Examining the relationships between multiple variables confirmed deductions made via the cursory univariate review. The majority observations between material ID and analyte are in fact correlated. One caution is to be aware of the data and its set up. The distribution of samples appeared to have some geographic importance when examined by location number. However, remember the univariate analysis showing the extreme right skewed assignment of location numbers led to a closer examination. And while some locations do have more observations than others the distribution is more even when looking by actual geographic locations or regions. 
+Examining the relationships between multiple variables confirmed deductions made via the cursory univariate review. The majority observations between material ID (air-filter), analyte (beta) and unit (pCi/m^3^) are in fact correlated. One caution is to be aware of the data and its set up. The distribution of samples at first appeared to have some geographic importance when examined by location number. However, remembering that the univariate analysis showed an extreme right skewed assignment of location numbers led to another look. And while some locations do have more observations than others the distribution is more even when looking by actual geographic locations or regions. 
 
 ####Interesting and Surprising Feature Interactions
 
-The data observations without a result entry seems to have some interesting story and appeared at first to be a fairly significant portion of the database. A major step in this investigation led to the grouping of the observations by sample which revealed that most of the empty observations were not duplicates just multiple analyte tests on the same sample. So there was some information, but just incomplete. Largely, these samples are not localized to any site with the exception of the air-charcoal samples in Hawaii. 
-Analyte tests in a sampling plan or were they previously tested and phased out  
-If these are optional analyte tests it is better to consider the missing results in context of the entire sample. Is the sample completley analyzed, that is all assigned analytes have results, are they incomplete having some results, or are they empty with no results? 
+Entries with results seems to have some interesting story and more difficult to track than firs thought. These entries at first glance are a fairly significant portion of the database (16%). However when grouped as samples (sample ID and date) reveals that most empty observations are just multiple analyte tests on the same sample. So for the most part each sample has some information. With the exception of the air-charcoal samples in Hawaii, status and location are not correlated. 
 
 ------
 
 ##Final Plots and Summary
-
-> **Tip**: You've done a lot of exploration and have built up an understanding
-of the structure of and relationships between the variables in your dataset.
-Here, you will select three plots from all of your previous exploration to
-present here as a summary of some of your most interesting findings. Make sure
-that you have refined your selected plots for good titling, axis labels (with
-units), and good aesthetic choices (e.g. color, transparency). After each plot,
-make sure you justify why you chose each plot by describing what it shows.
 
 ### Plot One
 
@@ -1713,37 +1759,61 @@ radnet_overview
 
 ```
 
-### Description One
-This map provides a nice simple synopsis of the RadNet Network from 1978 to 2017. North American cities with monitoring stations are marked with a colored dot indicating the number of stations in that city. Additionally, the size of the dot conveys the total number of entries into the database for the city. It is difficult to express this much information in a clear way, and while this map leaves out a number of monitoring stations in the Pacific Ocean it give a nice visual overview. 
+####RadNet Overview
+This North American map provides a nice synopsis of the RadNet Network from 1978 to 2017. Cities with monitoring stations are marked with a colored dot indicating the number of stations in that city. Additionally, the size of the dot conveys the total number of entries into the database by that city. While this map leaves out a number of monitoring stations in the Pacific Ocean it gives a nice simple overview as to the expanse and impact of the network. 
 
 ### Plot Two
-####Results by date with annotation
+ 
 ```{r Plot_Two, echo=FALSE, message=FALSE, warning=FALSE }
-rad_data_raw$RESULT_DATE <- as.Date(rad_data_raw$RESULT_DATE, "%F")
 
-#### DATE SPIKES ####
-analysis_counts <- c(510,565,480,490,1025,760,325,312 )
-analysis_dates <- c("1996-07-01","1997-07-01", "1998-07-01","1999-07-01",
-                    "2009-12-31", "2010-12-31","2011-12-31", "2012-12-31")
-label_df <- data.frame(analysis_counts, analysis_dates)
-label_df$analysis_dates <- as.Date(label_df$analysis_dates)
+#### Daily Average, Monthly Total  Entry Counts #### 
+rad_trim$month <- as.numeric(gsub("[^0-9]","",
+                    regmatches(rad_trim$RESULT_DATE, 
+                               regexpr("-(\\d{2})-",rad_trim$RESULT_DATE))))
 
-date_spikes <- ggplot(rad_data_raw, aes(RESULT_DATE)) + 
-  geom_line(color = "steelblue ", stat = "count") +
-  scale_x_date(date_breaks = "5 year", date_minor_breaks = "year")+
-  labs(title="Number of Analyses Results by Date", x=NULL, y = "Count") +
-  geom_point(data = label_df, aes(x=label_df$analysis_dates,
-                                  y=label_df$analysis_counts), color = "red")+
+rad_trim$year <- as.numeric(gsub("[^0-9]","",
+                    regmatches(rad_trim$RESULT_DATE, 
+                               regexpr("(\\d{4})-",rad_trim$RESULT_DATE))))
+daily_stats <- rad_trim %>% group_by(year,month, RESULT_DATE) %>% 
+  summarise(entries = n()) %>%        #entries by day
+  summarise(Days = n(),                # Days with entries
+            DailyAve = mean(entries),  #median daily entries for the month
+            Monthlytot = sum(entries)) #total entries for the month  
+
+#### Filter Spike Dates July 1 and Dec 31 FACET by Complete, fill Mat_ID ####
+#### Daily Average Entries and Monthly Totals 
+spikes <- rad_trim[grep(("-07-01|-12-31"), rad_trim$RESULT_DATE),] %>% 
+        select(MAT_ID, RESULT_DATE, complete, month, year)
+
+spikes <- left_join(spikes, daily_stats, by = c("year","month"))
+
+ggplot() +
+  geom_bar(data = spikes, aes(RESULT_DATE, fill = MAT_ID), stat = "count") +
+  geom_line(data= spikes, aes(RESULT_DATE, DailyAve, color = "1")) +
+  geom_line(data= spikes, aes(RESULT_DATE, Monthlytot, color = "2"), lty=3) +
+  labs(title="Complete/Empty Periodic Entries", x=NULL, y = "Count",
+       subtitle ="Result Entries Made July 1 and December 31") +
+  facet_grid(~spikes$complete, labeller = fertig_labeller) +
   theme(axis.text.x = element_text(angle=30),
-        plot.title = element_text(hjust = 0.5))
-date_spikes 
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.3),
+        legend.key.size = unit(2,"mm"),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.direction = 'vertical') +
+  scale_fill_manual(values=c("#B79F00", "#00BA38", "#00BFC4", "#619CFF", "#F564E3"))+
+  scale_color_manual(name ="",
+                       values = c("black", "blue"),
+                     labels = c("Daily Average Entries", "Monthly Total Entries"))+
+  scale_x_date(date_breaks = "5 year", date_minor_breaks = "year",
+               labels = date_format("%Y")) 
 ```
 
-### Description Two
-
+####Periodic Entry Spikes and Empty Result Entries
+These empty and completed entry distribution yields a slightly different perspective on the daily entries. In the univariate analysis we saw periodic spikes occuring with regularity on July 1 and December 31. The data was filtered for just these dates and then plotted as a barplot. In addition, lines for the total number of entries each month and the average nunber of entries per day for that month were added. In general, we see the expected, the spikes are much greater than what would be expected for an average daily entry and less than the month's total. The facet grid by empty/complete is a good imitation of that seen earlier. However, there is a new surprising feature, when distinguished by material ID the samples entered on the July 1 and December 31 groups are revealed as predominantly drinking water samples. While the distribution is of the same shape, the "background" samples covered up the fact that the periodic events are limited to the drinking water material type.
 
 ### Plot Three
-####Status Faceted by Material Type
+
 ```{r Plot_Three, echo=FALSE, message=FALSE, warning=FALSE }
 ## Violin Status by Mat_ID and Number of Analyses
 tests_complete_status <- ggplot(samples_rank, 
@@ -1761,207 +1831,19 @@ tests_complete_status <- ggplot(samples_rank,
 tests_complete_status
 ```
 
-### Description Three
-These double-faceted bar-plots are clean elegant way to clarify the status of samples within the database and provide easy classification possibilities. At the top level the samples are identified either as *complete* (all entries with the same sample ID have result), *empty* (all entries for the sample ID are NA) or *incomplete* (mixed result values with NA's). The separation by material type allows an easy comparison between these high level categories of sample types. Finally, by using a violin bar-plot a density function of the number of analyses (entries) per sample is readily illustrated. 
+####Sample Status Faceted by Material Type
+These double-faceted bar-plots are clean elegant way to clarify the status of samples within the database and provide easy classification possibilities. The samples are identified as *complete* (all entries with the same sample ID have results), *empty* (all entries for the sample ID are NA) or *incomplete* (mixed result values and NA's). The separation by material type allows an easy comparison between sample types. Finally, by using a violin bar-plot a density function of the number of analyses (entries) per sample is readily illustrated.   
+
 ------
 
 #Reflection
 
-> **Tip**: Here's the final step! Reflect on the exploration you performed and
-the insights you found. What were some of the struggles that you went through?
-What went well? What was surprising? Make sure you include an insight into
-future work that could be done with the dataset.
+Overall it was amazing to discover the number of avenues for exploration that could be found. The difficulty was getting drawn deeper into each examination. The number of ways to approach a solution is suprising, but it is as daunting as it is comforting. Other struggles varied from simple wrangling and tidying data to determining the proper commands/functions to use for each situation. And then re-wrangling to fit the data into a function or suitable format. 
 
-In attempting to map the monitoring locations a few issues were found with the data. For example, the abbreviation *PC* was not recognized by the API and was changed to the full Panama Canal; the city of Doswell, SC does not appear to exist, but several Doswell, VA observations were found in the dataframe so the single entry was changed from SC to VA. Additionally several entries were listed only as EPA Regions (1-10). In an effort to geo-locate the data, the region number was updated to the location of the headquarters for that EPA region.[^eparegions]. Also, rather than inundate the API with multiple requests for the same location a separate dataframe was created listing only unique city-state combinations. This removed the instances where a city has multiple monitoring stations (LOC_NUM). 
+Some simple data changes required judgement calls, for example, the city of Doswell, SC as entered in the database does not appear to exist, but several Doswell, VA observations were found in the dataframe so the single entry was changed from SC to VA. All entries listed only as EPA Regions (1-10) were changed to that regions headquarters[^eparegions] in an effort to geo-locate data. A small dataframe of unique city-state combinations was created rather than inundate the geocode API with multiple requests for the same location. This effort was partly responsible for the discovery of multiple monitoring stations in a single city. Many issues were in fact discovered through the analysis of other parts of the data.
 
+All the variables were analysed in the univariate section which was overwhelming and may have led to some disjointed yet interesting analyses. This also lead to a myriad of analyses that were culled and shortened to present a somewhat cohesive presentation. 
 
-In order to use the function `state_choropleth{choroplethr}`, the dataframe must contain a column named *region* matching the naming convention found for *region* in `state.map`. The convention for US state names is the full state name in lower case. The values to be mapped must be contained in column named *value*. Several data sets include data related to the USA and using the charactor vectors `state.abb` and `state.name` it was simple to make a dataframe which could be joined as an appropriately formatted *region* column using state abbreviation column already contained in the EPA RadNet dataset. However, as the state data does not include the territories several regions were added manually to complete complete the fields.
+Some of the biggest struggles where in finding a decent way to present the geographic data. Beyond reconfiguring variables to fulfill command and argument requirements the data sometimes had to be refined to where it was most meaningful or expressive. For example, as powerful as the visual is, a choropleth map can only express one value per region, one must subset the data to fit the region and decide what datum has the best impact, median, max, min? 
 
-
-
-
-
-
-#Miscellany to remove as needed
-
-
-```{r HI_facets, eval= FALSE, include=FALSE,echo=FALSE, message=FALSE, warning=FALS}
-#####################################  MULTIVARIATE Faceting HI ??
-##filter beta data
-HI_beta <- subset(HI_data, !is.na(RESULT_AMOUNT) &
-                           RESULT_UNIT == "PCI/M3" & 
-                           ANALYTE_ID =="BETA")
-
-summary(HI_data$RESULT_UNIT)
-### Counts of Hawaiian results by year, faceted by City ~ Material Type
-
-HI_samples <- ggplot(HI_beta, 
-                     aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = CITY_NAME))+
-  geom_point() +
-  #facet_grid(~HI_beta$MAT_ID) +
-  labs(title = 'RAD Analyses in HI Cities by Sample Type', 
-       caption = 'EPA RadNet Data', cex.main = 0.50,
-       fill = 'Material Type') +
-  # xlab('Date') +
-  # ylab('pCi/L') +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.caption = element_text(size = rel(0.5)),
-        axis.text.x = element_text(size=7, angle=45),
-        axis.title.x = element_blank(),
-        axis.title.x.top = element_text(size = 6),
-        legend.position = "none"
-  )
-HI_samples
-
-HI_analytes <- ggplot(HI_data, aes(RESULT_DATE, fill = ANALYTE_ID)) + 
-  geom_histogram() +
-  facet_wrap(~HI_data$MAT_ID) +
-  labs(title = 'HI Analytes by Sample Type', 
-       caption = 'EPA RadNet Data', cex.main = 0.50,
-       fill = 'Analyte Type') +
-  xlab('Date') +
-  ylab('count') +
-    theme(plot.title = element_text(hjust = 0.5),
-        plot.caption = element_text(size = rel(0.5)),
-        axis.text.x = element_text(size=7, angle=45),
-        axis.title.x = element_blank(),
-        axis.title.x.top = element_text(size = 6),
-        legend.position = "bottom")
-HI_analytes
-
-
-  labs(title = 'HI Analytes by Sample Type', 
-       caption = 'EPA RadNet Data', cex.main = 0.50,
-       fill = 'Analyte Type') +
-  xlab('Date') +
-  ylab('count') +
-    theme(plot.title = element_text(hjust = 0.5),
-        plot.caption = element_text(size = rel(0.5)),
-        axis.text.x = element_text(size=7, angle=45),
-        axis.title.x = element_blank(),
-        axis.title.x.top = element_text(size = 6),
-        legend.position = "bottom")
-HI_analytes
-```
-
-```{r csu_mdc_lambda, eval= FALSE, include=FALSE,echo=FALSE, message=FALSE, warning=FALSE}
-##Univariate Analyses of limited variables 
-##CSU Combined Standard Uncertainty (95% = 2xCSU)
-summary(rad_data$CSU)
-ggplot(subset(rad_data, RESULT_UNIT == "PCI/L"), 
-       aes(x=RESULT_DATE, y= CSU, color = ANALYTE_ID)) +
-  geom_point() +
-  labs(title = "CSU by year",
-       y="pCi/L", x =  "YEAR")
-
-##MDC Minimum Detectable Concentration
-summary(rad_data$MDC)
-ggplot(rad_data, aes(x=RESULT_DATE, y= MDC, color = ANALYTE_ID)) +
-  geom_point() +
-  labs(title = "MDC by year",
-       y="all units", x =  "YEAR")
-
-ggplot(subset(rad_data, RESULT_UNIT == "PCI/L"), 
-       aes(x=RESULT_DATE, y= MDC, color = ANALYTE_ID)) +
-  geom_point() +
-  labs(title = "MDC (pCi/L) by year",
-       y="pCi/L", x =  "YEAR")
-
-
-## Half-Life
-summary(rad_data$HALF_LIFE)
-count(rad_data, HALF_LIFE_TIME_UNIT)
-
-ggplot(rad_data, aes(x=RESULT_DATE, y= HALF_LIFE, color = ANALYTE_ID)) +
-  geom_point() +
-  labs(title = "Half-Lives of Analytes",
-       y="all units", x =  "YEAR")
-ggplot(subset(rad_data, HALF_LIFE_TIME_UNIT =="Y"), aes(x=RESULT_DATE, y= HALF_LIFE, color = ANALYTE_ID)) +
-  geom_point() +
-  labs(title = "Half-Lives of Analytes",
-       y="Half-life Years", x =  "YEAR")
-
-```
-
-```{r milk_k40, eval= FALSE, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-### Random Investigations
-#####################################
-
-pastuerized_milk <- ggplot(subset(rad_data, MAT_ID == "PASTEURIZED MILK"),
-                           aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = RESULT_UNIT)) + 
-  geom_point(alpha = 0.5) +
-  labs(title = 'Pasteurized Milk Samples 1978-2017', 
-       caption = 'EPA RadNet Data') +
-  scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
-  xlab('Date') +
-  ylab('All Units') +
-  theme(plot.caption = element_text(size = rel(0.5)),
-        plot.title = element_text(hjust=0.5),
-        legend.title = element_blank(),
-        axis.text.x = element_text(angle=30))
-
-count(subset(rad_data, ANALYTE_ID == "K40"))
-
-potassium_air <- ggplot(subset(rad_data, 
-                              (RESULT_UNIT == "PCI/M3" |
-                                            RESULT_UNIT == "ACI/M3") &
-                              (ANALYTE_ID == "K" | ANALYTE_ID == "K40")),
-                         aes(x=RESULT_DATE, y= RESULT_AMOUNT, color = RESULT_UNIT)) + 
-  geom_point() +
-  labs(title = 'K40', 
-       caption = 'EPA RadNet Data') +
-  scale_x_date(date_breaks = "1 years", labels = date_format("%Y")) +
-  xlab('Date') +
-  ylab('aCi/m3 or pCi/m3') +
-  theme(plot.caption = element_text(size = rel(0.5)),
-        plot.title = element_text(hjust=0.5),
-        legend.title = element_blank(),
-        axis.text.x = element_text(angle=30))
-potassium_air
-
-
-detection_limit_k40 <- rad_data %>% 
-  filter(ANALYTE_ID == "K40" &
-         (RESULT_UNIT == "PCI/M3" | RESULT_UNIT == "ACI/M3")) %>% 
-  group_by(citystate) %>% 
-  summarise(mean = mean(RESULT_AMOUNT), n = n(), 
-            value = max(RESULT_AMOUNT), lat = mean(lat), lon = mean(lon))
-  
-```
-
-```{r beta_airfilter, eval= FALSE, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE }
-
-### Group by BETA
-#########################
-beta_data <- subset(rad_data, ANALYTE_ID == "BETA")
-
-airbeta <- subset(beta_data, MAT_ID == "AIR-FILTER" & !is.na(CSU) &
-                 RESULT_UNIT == "PCI/M3")
-
-ggplot(airbeta) +
-  geom_point(aes(x=RESULT_DATE, y= RESULT_AMOUNT), colour = "red4", size =1) +
-  #geom_errorbar(aes(ymin= airbeta$RESULT_AMOUNT - airbeta$CSU, 
-  #                  ymax= airbeta$RESULT_AMOUNT + airbeta$CSU),
-  #             colour="black", width=.1) +
-  labs(title = 'BETA Results pCi/L, Air-Filter Samples', 
-       caption = 'EPA RadNet Data') +
-  scale_x_date(date_breaks = "5 years", labels = date_format("%Y")) +
-  scale_y_continuous(limits = c(-.05,.25)) +
-  xlab('Date') +
-  ylab('pCi/M3') +
-  geom_errorbar(aes(x=RESULT_DATE, y= RESULT_AMOUNT + CSU), colour = "yellow")+ 
-  #geom_line(aes(x=RESULT_DATE, y= MDC), colour = "green")+ 
-  theme(plot.caption = element_text(size = rel(0.5)),
-        plot.title = element_text(hjust=0.5),
-        legend.title = element_blank(),
-        axis.text.x = element_text(angle=30))
-
-
-ggplot(subset(beta_data, RESULT_DATE > "2010-12-31"),
-       aes(x=RESULT_DATE, y= RESULT_AMOUNT)) +
-  geom_errorbar(aes(ymin = RESULT_AMOUNT - CSU, 
-                    ymax = RESULT_AMOUNT + CSU),
-                    colour="black", width=.1) +
-  geom_line() +
-  geom_point()
-```
+As the intent of the RadNet database is to provide information on radioctive exposure and background. It was surprising to find missing data as interesting as some of the results. As I do not feel I investigated the results themselves in-depth there are many avenues for exploration left available. One could examine correlations between analytes, differences in the analytes and any release events. A closer inspection of detection limits and uncertainties with respect to analytes and results would also be interesting. A few regions were ignored and perhaps would show different impacts by the different release events.  An in-depth look at a small region with respect to all the analytes might reveal observations of a regional interest. 
