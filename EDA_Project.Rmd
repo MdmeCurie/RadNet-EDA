@@ -978,8 +978,11 @@ Examination of the material types in Hawaii yields some interesting observations
 #### Empty (NA's) RESULT_AMOUNT HI by MATERIAL ID ####
 HI_data %>% group_by(MAT_ID, complete) %>% summarise(n = n()) %>%  
   spread(complete,n) %>% mutate(percent_empty = round(N/(N+Y)*100, digits=0))
+```
 
+In 2011 an anomalous spike of empty entries, for which there is a corresponding spike of completed entries. Using a material filled distribution we see the spike to be composed of air-charcoal and air-filter samples. As air-charcoal samples were phased out in the 1980s it seems possible that the charcoal samples were entered in error and re-entered as air-filter samples. 
 
+```{r HI_spike, echo=FALSE, message=FALSE, warning=FALSE}
 #### Empty by Date ####
 HI_matIDna <- ggplot(subset(HI_data, is.na(RESULT_AMOUNT)), 
                    aes(RESULT_DATE)) +
@@ -1026,7 +1029,7 @@ HI_matID <- ggplot(HI_data, aes(RESULT_DATE, fill = MAT_ID)) +
 HI_matID
 ```
 
-In 2011 an anomalous spike of empty entries, for which there is a corresponding spike of completed entries. Using a material filled distribution we see the spike to be composed of air-charcoal and air-filter samples. As air-charcoal samples were phased out in the 1980s it seems possible that the charcoal samples were entered in error and re-entered as air-filter samples. 
+Further examination of the Hawaiian air samples confirms that around April 2011, 378 air analyses were entered. One-half as air-charcoal (190) with 128 empty and the remainder as air-filter analyses (188) with only 21 incomplete. However, upon a closer look, the air-filter sample spike is actualy earlier than the air-charcoal spike. 
 
 ```{r HI_airsamples, echo = FALSE, message=FALSE, warning=FALSE}
 HI_airentries <- subset(HI_data, RESULT_DATE > '2011-03-15' &
@@ -1035,14 +1038,16 @@ HI_airentries <- subset(HI_data, RESULT_DATE > '2011-03-15' &
                                  MAT_ID == 'AIR-FILTER'), 
                         select = c(SAMP_ID, MAT_ID, ANALYTE_ID,RESULT_AMOUNT, 
                                    CITY_NAME, RESULT_DATE, complete))
-dim(HI_airentries)
+#dim(HI_airentries)
+#n_distinct(HI_airentries$SAMP_ID)
+
 HI_airentries_group <- HI_airentries %>%  group_by(MAT_ID, complete) %>%
   summarise(n = n())
 HI_airentries_group 
-n_distinct(HI_airentries$SAMP_ID)
-HI_airentries %>%  group_by(SAMP_ID, MAT_ID) %>% summarise(n = n())
-filter(HI_airentries, MAT_ID == "AIR-FILTER")  %>%  
-  group_by(RESULT_DATE) %>% summarise(n = n())
+
+# HI_airentries %>%  group_by(SAMP_ID, MAT_ID) %>% summarise(n = n())
+# filter(HI_airentries, MAT_ID == "AIR-FILTER")  %>%  
+#   group_by(RESULT_DATE) %>% summarise(n = n())
 
 HI_airsamp <- ggplot(HI_airentries,
                    aes(RESULT_DATE, fill = CITY_NAME)) +
@@ -1057,12 +1062,13 @@ HI_airsamp <- ggplot(HI_airentries,
         legend.text = element_text(size = rel(0.5)),
         legend.key.size = unit(3,"mm"))
 HI_airsamp
-
-filter(rad_data_raw, MAT_ID =="AIR-CHARCOAL"  & is.na(RESULT_AMOUNT)) %>% group_by(region) %>% summarize(n=n())
-
 ```
 
-Further examination of the Hawaiian air samples confirms that around April 2011, 378 air analyses were entered. One-half as air-charcoal (190) with 128 empty and the remainder as air-filter analyses (188) with only 21 incomplete. However, upon a closer look, the air-filter sample spike is actualy earlier than the air-charcoal spike. So while interesting, more information is needed to establish the actual between the empty air-charcoal and air-filter samples. A quick survey of the databases shows that only a few locations have empty air-charcoal entries with Alaska and Hawaii having the greatest number. 
+So while interesting, more information is needed to establish the actual between the empty air-charcoal and air-filter samples. A quick survey of the databases shows that only a few locations have empty air-charcoal entries with Alaska and Hawaii having the greatest number. 
+
+```{r charcoal, echo=FALSE, message=FALSE, warning=FALSE}
+filter(rad_data_raw, MAT_ID =="AIR-CHARCOAL"  & is.na(RESULT_AMOUNT)) %>% group_by(region) %>% summarize(n=n())
+```
 
 #####Empty Entries and Completed Samples All Regions
 To examine the preponderance of empty entries in the entire database, a table of proportions was generated and frequency distributions of the complete/incomplete observations plotted by date. Interestingly, empty (incomplete) entries only exist from 1990 to 2011. During this 20 year interval, the ratio of empty/completed entries is fairly steady at ~0.37. 
@@ -1514,11 +1520,9 @@ monitors_fukushima <- USAMap +
         legend.key.size = unit(2,"mm")
         )
 monitors_fukushima
-
-
 ```
 
-Not other radionuclides were analysed, but plot of the other analytes with a consistent (pCi/m^3^) during this event shows some areas with peaks up to 37 pCi/m^3^. 
+Not many other radionuclides were analysed during this time, but plot of the other analytes (with the same measurement unit pCi/m^3^) during this event shows some areas with peaks up to 37 times that of the gross beta, e.g. 37 pCi/m^3^. 
 
 ```{r fukushima_other, echo=FALSE, message=FALSE, warning=FALSE}
 #### Fukushima Other Analytes max by monitoring station###################
@@ -1554,13 +1558,14 @@ monitors_fukushima_other <- USAMap +
   scale_color_brewer(type = 'qual', palette = "Set1")
 
 monitors_fukushima_other
-grid.arrange(monitors_fukushima, monitors_fukushima_other, ncol = 2, nrow = 1,
-             top = "Air Filter Samples After Fukushima")
+
+# grid.arrange(monitors_fukushima, monitors_fukushima_other, ncol = 2, nrow = 1,
+#              top = "Air Filter Samples After Fukushima")
 
 
 ```
 
-Measurements in Alaska after Fukushima were almost twice the US-contiguous response, 1.15 pCi/m^3^  vs. 0.6 pCi/m^3^ gross beta max. Other radionuclides were detected at even higher values in AK, 144 pCi/m^3^ for Bismuth-212, 126 pCi/m^3^ for Lead-212 and 59 pCi/m^3^ for Thallium-208.
+Measurements in Alaska after Fukushima were almost twice the contiguous US response, 1.15 pCi/m^3^  vs. 0.6 pCi/m^3^ gross beta max. Other radionuclides were detected at even higher values in AK, 144 pCi/m^3^ for Bismuth-212, 126 pCi/m^3^ for Lead-212 and 59 pCi/m^3^ for Thallium-208.
 
 ```{r fukushima_AK, echo=FALSE, message=FALSE, warning=FALSE}
 AK_center = c(-149.4937, 64.20084)
