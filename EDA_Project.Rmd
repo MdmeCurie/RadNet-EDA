@@ -1,7 +1,7 @@
 ---
 title: "RadNet Exploratory Data Analysis with RStudio"
 author: "Wendy Bisset"
-date: "August 27, 2018"
+date: "September 24, 2018"
 output:
   html_document:
     df_print: paged
@@ -28,8 +28,8 @@ library(png)
 ```
 
 
-```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.align = 'center', fig.path='Figs/', warning=FALSE, message=FALSE)
+```{r global_options, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center', warning=FALSE, message=FALSE)
 ```
 
 ##Data Source and Background Information 
@@ -109,7 +109,7 @@ Variable names were shortened and several variables were recast as factors with 
 [^as.Date]: <https://www.rdocumentation.org/packages/base/versions/3.4.1/topics/as.Date>.
 
 ```{r cleanup, echo=FALSE, message=FALSE, warning=FALSE}
-#### Rename Variables ####
+#### Rename Variables 
 colnames(surface_water_data) <-gsub('.+\\.','',colnames(surface_water_data))
 colnames(Milk_data) <-gsub('.+\\.','',colnames(Milk_data))
 colnames(air_data) <-gsub('.+\\.','',colnames(air_data))
@@ -118,9 +118,9 @@ colnames(drinking_water_data)<-
   gsub('.+\\.','',colnames(drinking_water_data))
 colnames(rad_data_raw) <-gsub('.+\\.','',colnames(rad_data_raw))
 
-#### level/order variables of limited categories ####
+#### level/order variables of limited categories 
 ### impose order, e.g., S(econd) < M(inute) < H(our) < D(ay) < Y(ear).
-####################################################################
+
 ### (1) ID for original df source (numerical tie to media type)
 ###           1-5 :  (1) air_data, (2) drinking_water_data, 
 ###                  (3) Milk_data,(4)precipitation_data,
@@ -158,9 +158,8 @@ summary(rad_data_raw$ANA_UNIT)
 #####Location Numbers, Cities, and States
 The location numbers range from 1 to 4157, but there are only 324 unique sampling locations with most values <500, the distribution is a long tail right skeew. The location numbers correspond to 289 cities or regions in the US, US territories, the Pananma Canal (PC) or Ottawa, Canada (ON). Several cities have multiple monitoring stations, e.g., Oakridge, Tennesse has 11 different monitoring location numbers. 
 
-```{r locations, echo=FALSE, message=FALSE, warning=FALSE}
+```{r location_IDs, echo=FALSE, message=FALSE, warning=FALSE}
 ### LOC_NUM -> INT  1-4157, 324 distinct locs ####
-
 summary(rad_data_raw$LOC_NUM)
 #n_distinct(rad_data_raw$LOC_NUM)
 ggplot(rad_data_raw, aes(LOC_NUM)) +
@@ -170,7 +169,7 @@ ggplot(rad_data_raw, aes(LOC_NUM)) +
  theme(plot.title = element_text(hjust = 0.5))
 ```
 
-```{r locations, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
+```{r location_city, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
 ### City Locations ####
 #n_distinct(rad_data_raw$CITY_NAME)
 
@@ -393,8 +392,17 @@ rad_data_raw <- left_join(rad_data_raw, places,
 
 Most of the monitoring locations can be represented on a cropped map of North America. The eastern seaboard has the most monitoring stations. Filtering data by lat/long we find 12 monitoring locations not represented on this map.
 
-```{r northamericamap, eval = false, echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
-#### Do NOT RUNGoogle maps now requires API KEY !!! 
+```{r region_sep, echo=FALSE, message=FALSE, warning=FALSE}
+## misnonmer in variable names continental is North America sans Alaska,
+## includes Puerto Rico and Panama
+
+continental <- places %>% filter(between(lon, -130, -60) & 
+                                 between(lat, 8, 55))
+noncontinental <- places %>% filter(!between(lon, -130, -60))
+```
+
+```{r northamericamap, eval = FALSE, echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
+#### May NOT RUN properly Google maps now requires API KEY !!! 
 #### Original map saved as png and visualize in following R chunk ####
 
 #usa_center = as.numeric(geocode("United States")) 
@@ -404,10 +412,6 @@ usa_center = c(-95.712891, 37.09024)
 usa_cont_bounds = c(left = -130.0,bottom = 11.0, right = -60.0, top = 51.0)
 USAMap = ggmap(get_googlemap(center=usa_center, scale=2, zoom=3, 
                              extent ="device"))
-        
-continental <- places %>% filter(between(lon, -130, -60) & 
-                                 between(lat, 8, 55))
-noncontinental <- places %>% filter(!between(lon, -130, -60))
 
 ### US Map with sampling locations
 usa_stations <- USAMap + scale_y_continuous(limit = c(8,50)) +
@@ -426,9 +430,8 @@ dev.off()
 
 ```{r visualize_usmap, echo=FALSE, message=FALSE, warning=FALSE, fig.dim = c(9,7.5), fig.align='center'}
 img <- readPNG("Maps/usa_stations.png")
- rid.raster(img, width=9, height=7.5, default.units = "in", just = 'center')
+ grid.raster(img, width=9, height=7.5, default.units = "in", just = 'center')
 ```
-
 
 ```{r noncontinent, echo=FALSE,  message=FALSE, warning=FALSE}
 grid.arrange(tableGrob(head(noncontinental, n=12), theme = mytabletheme))
@@ -480,7 +483,7 @@ grid.arrange(HImap_stations, AKmap_stations, nrow = 1,
 
 RadNET Stations in Alaska on Google Map
 
-![CRadNet Data](alaska_map.png)
+![CRadNet Data](Maps/alaska_map.png)
 
 </center>
 
@@ -894,7 +897,7 @@ cor_station_empty <- round(cor(bystate$stations, bystate$empty,
 
 station_obs <- ggplot(bystate, aes(x = stations, y=value)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "lm")+
   annotate("text", x = 5, y=27500, label = cor_station_obs)
 
 station_NAs <- ggplot(bystate, aes(x = stations, y=empty)) +
@@ -1218,7 +1221,7 @@ print(paste(c("Distinct Sample IDs by Analyte:  ",
 
 Thus, to collect together all parts of a sample, the dataframe was grouped across 4 categories (material ID, date range (2yr), location, and sample ID). This grouping was developed to determine a status for the sample: complete - all analytes have results, incomplete - some analytes have empty results, and empty - no results entered for any of the analytes. Using this status categorization there are 274677 samples, 93.5% of which are complete, 6.4% are incomplete, and 0.1% are empty. With the grouped data we can visualize the status of a sample by the number of tests (entries). Most samples have only 1 test, those that are empty have about 5 tests while incomplete samples have a range of entries(tests), mostly from 4 to 10.
 
-```{r sample_status, echo=FALSE, fig.align='center' message=FALSE, warning=FALSE}
+```{r sample_status, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE}
 #### SAMPLES: Group by MAT_ID, 2-year date range, location, sample id ####
 samples_rank <- rad_data_raw %>%
   group_by(MAT_ID, date_range2, LOC_NUM, lat, lon, SAMP_ID) %>% 
@@ -1461,7 +1464,7 @@ HI_beta <- ggplot(subset(HI_data, !is.na(RESULT_AMOUNT) &
         legend.position = c(0.45,0.85))
 
 log_HI_beta <- HI_beta + scale_y_log10()
-
+log_HI_beta
 #grid.arrange(HI_beta, log_HI_beta)
 #HI_beta
 ```
@@ -1577,7 +1580,7 @@ fukushima_points <- rad_data %>%
             value = max(RESULT_AMOUNT), lat = mean(lat), lon = mean(lon))
 ```
 
-```{r fukushima_stationmap, eval= false, echo=FALSE, message=FALSE, warning=FALSE}
+```{r fukushima_stationmap, eval= FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 #### Google Map Fukushima Beta max by monitoring station###################
 #### Map saved as image and rasterized in following chunk
 monitors_fukushima <- USAMap +
@@ -1829,7 +1832,7 @@ dev.off()
 ```
 
 ```{r visualize_USA_h2o, echo=FALSE, fig.align='center', fig.dim=c(9,7.5), message=FALSE, warning=FALSE}
-img <- readPNG("Maps/loc_empty_h20.png")
+img <- readPNG("Maps/loc_empty_h2o.png")
  grid.raster(img, width=9, height=7.5, default.units = "in", just = 'center')
 ```
 ###Multivariate Analysis and Review
