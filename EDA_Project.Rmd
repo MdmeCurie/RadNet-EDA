@@ -299,7 +299,7 @@ places <- read.csv("places_data.csv", header=TRUE,
 ```
 
 ```{r get_latlona, eval=FALSE, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-########################################################################
+#### Do not run - Google geocode no requires API KEY ###
 ###  CHANGE eval=TRUE to run this code
 ###  Generate file with lat/lon geo data for City/State 
 ###  WARNING THIS CHUNK DOWNLOADS LAT/LON FROM google and takes TIME!
@@ -853,7 +853,7 @@ Variables with multiple levels, such as cities and states are not easy to includ
 
 [^ggpairs]: http://koaning.io/ggally-explore-all-the-things.html
 
-```{r corr_matrix,echo=FALSE, fid.dim = c(10,10), fig.align='center', message=FALSE, warning=FALSE }
+```{r corr_matrix, echo=FALSE, fig.dim = c(10,10), fig.align='center', message=FALSE, warning=FALSE }
 #### Avoid long running matrix using 10% sampling of data base ####
 set.seed(999)
 test_10 <- rad_data_raw[sample(nrow(rad_data_raw), 50000, replace = FALSE),]
@@ -992,6 +992,8 @@ Regional subsets of the data were useful to simplify initial data manipulations 
 
 ```{r HI_minireviews, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE}
 #### REVIEW OF DATA with smaller data subset - Hawaii ####
+#### intermittant error  'In stringUnit(units) : reached elapsed time limit'
+#### rerun grid.arrange will display HI maps?
 HI_data <- rad_data_raw %>% filter(STATE_ABBR == "HI")
 
 HI_map_matidA <- HImap + geom_count(data = subset(HI_data,
@@ -1403,7 +1405,7 @@ With the distribution of samples over the various monitoring stations positively
 summary(rad_trim$LOC_NUM) #skewed LOC_NUM ID assignments 
 ggplot(rad_trim, aes(region, fill = ANALYTE_ID)) + 
   geom_bar(stat="count") +
-  facet_wrap(~rad_trim$MAT_ID) +
+  facet_wrap(~rad_trim$MAT_ID, ncol = 2, scales = 'free_y') +
   theme(legend.key.size = unit(2,"mm"), 
         axis.text.x = element_text(angle = 90, vjust = 1, hjust=1, size = 7)) +
   guides(fill=guide_legend(ncol=2))
